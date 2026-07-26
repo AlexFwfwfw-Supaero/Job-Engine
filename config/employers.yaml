@@ -21,10 +21,15 @@ employers:
      careers_url: "https://www.navcert.de/"}
 
   # --- industry: primes and space ---
-  - {name: Airbus Defence and Space, country: DE, city: Munich, ats: manual, tags: [space, defense],
-     careers_url: "https://www.airbus.com/en/careers"}
+  - {name: Airbus Defence and Space, country: DE, city: Munich, ats: workday,
+     ats_endpoint: "https://ag.wd3.myworkdayjobs.com/wday/cxs/ag/Airbus/jobs",
+     poll_enabled: true, tags: [space, defense],
+     careers_url: "https://ag.wd3.myworkdayjobs.com/en-US/Airbus",
+     notes: "CONFIRMED 2026-07-26 — Workday tenant 'ag', site 'Airbus'. POST JSON
+             returns jobPostings. Covers all Airbus divisions, not just DS."}
   - {name: Thales Alenia Space, country: FR, city: Toulouse, ats: manual, tags: [space, defense],
-     careers_url: "https://www.thalesaleniaspace.com/en/careers"}
+     careers_url: "https://www.thalesaleniaspace.com/en/careers",
+     notes: "careers_url 404s — needs a correct URL before polling can be scoped"}
   - {name: Thales, country: FR, city: Toulouse, ats: manual, tags: [radar, defense],
      careers_url: "https://www.thalesgroup.com/en/careers"}
   - {name: Safran Data Systems, country: FR, city: Toulouse, ats: manual, tags: [pnt, industry],
@@ -37,8 +42,10 @@ employers:
      careers_url: "https://www.leonardo.com/en/careers"}
 
   # --- agencies and research ---
-  - {name: ESA, country: NL, city: Noordwijk, ats: manual, tags: [space, agency, ygt],
-     careers_url: "https://jobs.esa.int/"}
+  - {name: ESA, country: NL, city: Noordwijk, ats: successfactors, tags: [space, agency, egt],
+     careers_url: "https://jobs.esa.int/",
+     notes: "CONFIRMED 2026-07-26 — SAP SuccessFactors. Endpoint not yet mapped;
+             SuccessFactors usually needs HTML parsing rather than a JSON API."}
   - {name: DLR, country: DE, city: Oberpfaffenhofen, ats: manual, tags: [gnss, research, phd],
      careers_url: "https://www.dlr.de/en/careers"}
   - {name: Fraunhofer IIS, country: DE, city: Nuremberg, ats: manual, tags: [gnss, research, phd],
