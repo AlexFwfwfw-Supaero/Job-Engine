@@ -11,12 +11,9 @@ from jobhunt.config import (
     load_cities, load_comp, load_deadlines, load_employers, load_scoring,
 )
 from jobhunt.links import apply_results, check_jobs
-from jobhunt.match import evaluate
-from jobhunt.models import Employer, EventKind, Job, Stage
+from jobhunt.models import Stage
 from jobhunt.report import build_context, render
-from jobhunt.score import compensation, quality_of_life, total_score
-from jobhunt.snapshot import default_client, fetch_text, save_snapshot
-from jobhunt.sources.manual import posting_from_url
+from jobhunt.snapshot import default_client
 from jobhunt.store import Store
 
 app = typer.Typer(help="Track GNSS/PNT/radar job opportunities.")
@@ -44,10 +41,6 @@ def _open_store() -> Store:
     store = Store(Path(os.environ.get("JOBHUNT_DB", "data/jobs.db")))
     store.initialize()
     return store
-
-
-def _postings_dir() -> Path:
-    return Path(os.environ.get("JOBHUNT_POSTINGS", "data/postings"))
 
 
 def _dashboard_path() -> Path:
@@ -86,53 +79,26 @@ def add(
     title: Optional[str] = typer.Option(None, "--title"),
 ) -> None:
     """Fetch a posting URL, snapshot it, score it, and store it."""
-    cfg, comp_cfg, cities = _load_all()
+    from jobhunt.web.app import add_job_from_url
+    from jobhunt.web.deps import Deps
+
     store = _open_store()
-
-    known = store.find_employer_by_name(employer)
-    if known is None:
-        employer_id = store.upsert_employer(
-            Employer(name=employer, country=country, city=city)
-        )
+    deps = Deps(
+        store_factory=_open_store, config_dir=_config_dir(),
+        today=_today, http_client=_http_client,
+    )
+    if store.find_employer_by_name(employer) is None:
         typer.echo(f"created employer: {employer}")
-    else:
-        employer_id = known.id
-        country = country or known.country
-        city = city or known.city
 
-    client = _http_client()
-    try:
-        text = fetch_text(url, client)
-    finally:
-        close = getattr(client, "close", None)
-        if close:
-            close()
-
-    posting = posting_from_url(url, text, title=title)
-    snapshot_path = save_snapshot(_postings_dir(), url, text)
-
-    match = evaluate(posting.title, posting.description, country, cfg)
-    for reason in match.reasons:
-        typer.echo(f"warning: {reason}")
-
-    city_entry = cities.get(city.lower()) if city else None
-    breakdown = compensation(country, level, salary, comp_cfg, city_entry, cfg)
-    qol = quality_of_life(city_entry, cfg)
-    total = total_score(breakdown.normalised, qol, match.role_fit, cfg.weights)
-
-    now = _now()
-    job_id = store.upsert_job(Job(
-        employer_id=employer_id, title=posting.title, url=url, city=city,
-        country=country, source="manual", snapshot_path=str(snapshot_path),
-        first_seen=now, last_seen=now, role_fit=match.role_fit,
-        comp_score=breakdown.normalised, qol_score=qol, total_score=total,
-        salary_stated=salary, level=level,
-        language_flags=match.language_flags,
-        tags=[t.strip() for t in tags.split(",") if t.strip()],
-    ))
+    job_id = add_job_from_url(
+        store, deps, url, employer, city, country, level, tags, title, salary
+    )
+    job = store.get_job(job_id)
+    if job.role_fit == 0.0:
+        typer.echo("warning: no role family matched")
     typer.echo(
-        f"[{job_id}] {posting.title} — score {total:.2f} "
-        f"(fit {match.role_fit:.2f}, comp {breakdown.normalised:.2f}, qol {qol:.2f})"
+        f"[{job_id}] {job.title} — score {job.total_score:.2f} "
+        f"(fit {job.role_fit:.2f}, comp {job.comp_score:.2f}, qol {job.qol_score:.2f})"
     )
     store.close()
 
