@@ -10,6 +10,7 @@ import typer
 from jobhunt.config import (
     load_cities, load_comp, load_deadlines, load_employers, load_scoring,
 )
+from jobhunt.links import apply_results, check_jobs
 from jobhunt.match import evaluate
 from jobhunt.models import Employer, EventKind, Job, Stage
 from jobhunt.report import build_context, render
@@ -206,9 +207,9 @@ def stage(job_id: int, new_stage: str) -> None:
 
 @app.command()
 def note(job_id: int, text: str) -> None:
-    """Attach a note to a job."""
+    """Replace a job's standing note."""
     store = _open_store()
-    store.add_event(job_id, EventKind.NOTE, text, ts=_now())
+    store.set_note(job_id, text, ts=_now())
     typer.echo(f"[{job_id}] noted")
     store.close()
 
@@ -219,6 +220,59 @@ def dismiss(job_id: int, reason: str = typer.Option(..., "--reason", "-r")) -> N
     store = _open_store()
     store.dismiss_job(job_id, reason, ts=_now())
     typer.echo(f"[{job_id}] dismissed: {reason}")
+    store.close()
+
+
+@app.command()
+def priority(job_id: int, value: int) -> None:
+    """Set a job's priority, 1-5 (0 clears it)."""
+    store = _open_store()
+    try:
+        store.set_priority(job_id, value, ts=_now())
+    except ValueError as exc:
+        typer.echo(str(exc))
+        store.close()
+        raise typer.Exit(code=2)
+    typer.echo(f"[{job_id}] priority {value}")
+    store.close()
+
+
+@app.command()
+def archive(job_id: int, reason: str = typer.Option(..., "--reason", "-r")) -> None:
+    """Archive a job you judged uninteresting. Survives re-polling."""
+    store = _open_store()
+    store.archive_job(job_id, reason, ts=_now())
+    typer.echo(f"[{job_id}] archived: {reason}")
+    store.close()
+
+
+@app.command()
+def restore(job_id: int) -> None:
+    """Bring an archived job back into the pipeline."""
+    store = _open_store()
+    store.restore_job(job_id, ts=_now())
+    typer.echo(f"[{job_id}] restored")
+    store.close()
+
+
+@app.command()
+def refresh() -> None:
+    """Re-check every tracked job's URL and record whether it still resolves."""
+    store = _open_store()
+    jobs = store.list_jobs()
+    client = _http_client()
+    try:
+        results = check_jobs(jobs, client, now=_now())
+    finally:
+        close = getattr(client, "close", None)
+        if close:
+            close()
+
+    apply_results(store, results, now=_now())
+    dead = [r for r in results if r.status == "dead"]
+    typer.echo(f"checked {len(results)} jobs, {len(dead)} dead")
+    for result in dead:
+        typer.echo(f"  dead: {result.url}")
     store.close()
 
 
