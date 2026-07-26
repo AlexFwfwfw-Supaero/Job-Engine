@@ -20,7 +20,7 @@ work.
 
 - Remote access. The server binds to `127.0.0.1` only.
 - Authentication, multi-user, or deployment. This is a local single-user tool.
-- A JavaScript build step. HTMX is vendored as a single file; no npm, no bundler.
+- Any JavaScript. Rendering is server-side; forms are plain HTML.
 - Replacing the CLI. Both interfaces call the same store functions.
 
 ## Data model changes
@@ -78,8 +78,9 @@ a CLI alias so existing habits and docs keep working.
 
 ## Server
 
-FastAPI served by uvicorn, started with `jobs serve`. Templates and the vendored
-HTMX file ship inside the package.
+FastAPI served by uvicorn, started with `jobs serve`. Templates ship inside the
+package. Rendering is server-side Jinja2 with plain HTML forms; there is no
+JavaScript and no build step.
 
 Routes:
 
@@ -96,8 +97,11 @@ Routes:
 | POST | `/actions/search` | Run discovery across enabled sources |
 | POST | `/actions/refresh` | Re-check every live job's URL |
 
-Mutating routes return the re-rendered fragment they affected, so the page updates
-without a reload and without client-side state.
+Mutating routes are POST-redirect-GET: they perform the change and redirect to the
+tab named in the form's `return_to` field, which is validated against the known tab
+list so it cannot become an open redirect. This was chosen over HTMX fragments
+because vendoring a JS file to avoid a sub-100ms local page reload is not a trade
+worth making on a single-user local tool.
 
 ## Link checking
 
@@ -131,6 +135,6 @@ functions, so there is one implementation and one set of tests.
 
 ## Testing
 
-FastAPI's `TestClient` against a temporary database, no network. Link checking
-takes an injected HTTP client, as the existing snapshot module does. Route tests
-assert both the storage effect and the returned fragment.
+FastAPI's `TestClient` against a temporary database, no network. Link checking and
+job fetching take an injected HTTP client via the `Deps` bundle. Route tests assert
+both the storage effect and the redirect target.

@@ -1,8 +1,8 @@
 # Job search tracker
 
 Tracks GNSS/PNT/radar engineering opportunities across Europe: a curated employer
-watchlist, a pipeline with follow-up nudges, configurable scoring, and a static
-dashboard.
+watchlist, a pipeline with follow-up nudges, configurable scoring, and a local
+web UI.
 
 ## Setup
 
@@ -12,18 +12,39 @@ dashboard.
 
 ## Daily use
 
+Start the UI:
+
+    jobs serve            # http://127.0.0.1:8000
+
+Tabs: **Overview** (what needs attention), **Job Search** (spotted jobs, add by
+URL, re-check links), **Interested** (shortlisted, with priority and notes),
+**Applied** (grouped by stage, with staleness), **Archive** (ruled out, with
+reasons), **Deadlines** (recurring cycles).
+
+The server binds loopback only and refuses anything else. This database holds your
+whole job search; a typo should not put it on your network.
+
+Everything the UI does has a CLI equivalent:
+
     jobs add <url> --employer "Septentrio" --city Leuven --country BE
     jobs list
     jobs stage 12 applied
-    jobs note 12 "recruiter call booked for Tuesday"
+    jobs priority 12 4
+    jobs note 12 "team lead is ex-DLR"
+    jobs refresh                     # re-check every posting URL
+    jobs archive 14 --reason "surveying, not engineering"
+    jobs restore 14
     jobs due
-    jobs report && xdg-open dashboard.html
 
-## Dismissing
+## Archiving
 
-    jobs dismiss 14 --reason "surveying, not engineering"   # you reject the job
+    jobs archive 14 --reason "surveying, not engineering"   # you rule it out
     jobs reject 12                                          # they reject you
+    jobs restore 14                                         # bring it back
     jobs dismissed --review                                 # tune negative keywords
+
+A dead link never auto-archives. `jobs refresh` flags it and leaves the decision
+to you — a 404 can mean filled, moved, or a transient error.
 
 ## Configuration
 
