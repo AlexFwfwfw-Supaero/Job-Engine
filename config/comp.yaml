@@ -1,0 +1,40 @@
+# All figures are starting estimates to be corrected as real numbers emerge.
+# The PhD rows for DE and FR are the closest to genuinely known: DE approximates
+# TV-L E13 at 65%, FR approximates the national contrat doctoral rate.
+reference_purchasing_power: 40000
+
+# Effective all-in rate for a single filer with no dependants, incl. social
+# contributions. Approximate; sufficient for ranking, not for planning.
+effective_tax:
+  DE: 0.38
+  FR: 0.26
+  NL: 0.33
+  BE: 0.41
+  CH: 0.18
+  IT: 0.33
+  ES: 0.27
+  PT: 0.31
+  SE: 0.32
+
+# Eurostat price level index, EU27 = 1.00. Update from the annual release.
+pli:
+  DE: 1.07
+  FR: 1.09
+  NL: 1.15
+  BE: 1.11
+  CH: 1.55
+  IT: 1.00
+  ES: 0.93
+  PT: 0.90
+  SE: 1.20
+
+salary_by_country:
+  DE: {junior: 58000, phd: 33000}
+  FR: {junior: 41000, phd: 24000}
+  NL: {junior: 46000, phd: 34000}
+  BE: {junior: 44000, phd: 32000}
+  CH: {junior: 92000, phd: 50000}
+  IT: {junior: 32000, phd: 20000}
+  ES: {junior: 30000, phd: 19000}
+  PT: {junior: 26000, phd: 18000}
+  SE: {junior: 45000, phd: 33000}

@@ -1,0 +1,28 @@
+# Starting estimates, not researched figures. Annual sunshine hours are from
+# published climate normals; `nature` is a personal 0-10 score for outdoor
+# access; `rent_index` is a monthly one-bedroom figure in EUR.
+# Correct these as you learn real numbers — they are inputs you own, not facts
+# the tool asserts.
+cities:
+  - {name: Munich,     country: DE, sunshine_hours: 1777, nature: 9, rent_index: 1400}
+  - {name: Toulouse,   country: FR, sunshine_hours: 2100, nature: 7, rent_index: 750}
+  - {name: Noordwijk,  country: NL, sunshine_hours: 1660, nature: 7, rent_index: 1300}
+  - {name: Delft,      country: NL, sunshine_hours: 1660, nature: 5, rent_index: 1250}
+  - {name: Leuven,     country: BE, sunshine_hours: 1620, nature: 5, rent_index: 900}
+  - {name: Brussels,   country: BE, sunshine_hours: 1550, nature: 4, rent_index: 1100}
+  - {name: Zurich,     country: CH, sunshine_hours: 1660, nature: 9, rent_index: 2100}
+  - {name: Thalwil,    country: CH, sunshine_hours: 1660, nature: 9, rent_index: 1900}
+  - {name: Madrid,     country: ES, sunshine_hours: 2769, nature: 7, rent_index: 1100}
+  - {name: Barcelona,  country: ES, sunshine_hours: 2524, nature: 8, rent_index: 1200}
+  - {name: Rome,       country: IT, sunshine_hours: 2473, nature: 6, rent_index: 950}
+  - {name: Turin,      country: IT, sunshine_hours: 2000, nature: 9, rent_index: 700}
+  - {name: Milan,      country: IT, sunshine_hours: 1915, nature: 7, rent_index: 1200}
+  - {name: Padua,      country: IT, sunshine_hours: 2000, nature: 6, rent_index: 700}
+  - {name: Nuremberg,  country: DE, sunshine_hours: 1680, nature: 7, rent_index: 850}
+  - {name: Darmstadt,  country: DE, sunshine_hours: 1650, nature: 6, rent_index: 900}
+  - {name: Braunschweig, country: DE, sunshine_hours: 1550, nature: 5, rent_index: 700}
+  - {name: Toulon,     country: FR, sunshine_hours: 2800, nature: 9, rent_index: 800}
+  - {name: Nice,       country: FR, sunshine_hours: 2724, nature: 9, rent_index: 1150}
+  - {name: Paris,      country: FR, sunshine_hours: 1662, nature: 3, rent_index: 1350}
+  - {name: Lisbon,     country: PT, sunshine_hours: 2799, nature: 8, rent_index: 1100}
+  - {name: Gothenburg, country: SE, sunshine_hours: 1700, nature: 9, rent_index: 950}

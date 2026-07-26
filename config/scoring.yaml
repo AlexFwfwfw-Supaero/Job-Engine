@@ -1,0 +1,49 @@
+weights: {comp: 0.30, qol: 0.20, fit: 0.50}
+qol_weights: {sunshine: 0.45, nature: 0.35, rent: 0.20}
+sunshine_range: [1300, 2900]
+rent_range: [400, 1800]
+
+excluded_countries: [GB]
+known_languages: [en, fr, es, pt]
+language_keywords:
+  de: ["german language", "deutschkenntnisse", "fluent german", "german is required"]
+  nl: ["dutch language", "fluent dutch"]
+
+negative_keywords:
+  - "land surveyor"
+  - "surveying technician"
+  - "gis technician"
+  - "account manager"
+  - "sales representative"
+  - "field service"
+  - "business development"
+
+staleness:
+  applied: [14, 30]
+  phd: [21, 45]
+
+role_families:
+  - name: gnss
+    weight: 1.0
+    keywords: ["gnss", "gps", "galileo", "receiver", "signal processing",
+               "correlator", "acquisition and tracking", "rtk", "ppp"]
+  - name: pnt
+    weight: 1.0
+    keywords: ["pnt", "integrity", "spoofing", "jamming", "interference",
+               "anti-jam", "raim", "resilient navigation", "timing"]
+  - name: navigation_systems
+    weight: 0.9
+    keywords: ["navigation system", "avionics", "guidance navigation and control",
+               "gnc", "flight dynamics", "orbit determination"]
+  - name: sensor_fusion
+    weight: 0.9
+    keywords: ["sensor fusion", "kalman", "estimation", "inertial", "imu",
+               "ins", "state estimation", "slam"]
+  - name: radar
+    weight: 0.8
+    keywords: ["radar", "sar", "doppler", "waveform", "beamforming",
+               "electromagnetic", "rf front-end"]
+  - name: adjacent
+    weight: 0.5
+    keywords: ["autonomous driving", "geodesy", "remote sensing",
+               "digital signal processing", "software defined radio"]
