@@ -72,6 +72,10 @@ class Job:
     base_cv: str = ""
     angle: str = ""
     applied_on: str | None = None
+    notes: str = ""
+    priority: int = 0
+    link_status: str = "unknown"
+    last_checked: str | None = None
     id: int | None = None
 
 

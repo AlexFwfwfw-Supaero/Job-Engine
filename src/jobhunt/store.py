@@ -46,7 +46,11 @@ CREATE TABLE IF NOT EXISTS jobs (
     tags TEXT DEFAULT '[]',
     base_cv TEXT DEFAULT '',
     angle TEXT DEFAULT '',
-    applied_on TEXT
+    applied_on TEXT,
+    notes TEXT DEFAULT '',
+    priority INTEGER DEFAULT 0,
+    link_status TEXT DEFAULT 'unknown',
+    last_checked TEXT
 );
 
 CREATE TABLE IF NOT EXISTS events (
@@ -65,8 +69,20 @@ CREATE INDEX IF NOT EXISTS idx_jobs_stage ON jobs(stage, dismissed);
 # overwritten when a poller re-sees a posting it has already recorded.
 _PRESERVED_ON_REUPSERT = (
     "stage", "dismissed", "dismiss_reason", "base_cv", "angle",
-    "applied_on", "first_seen",
+    "applied_on", "first_seen", "notes", "priority",
 )
+
+# Columns added after the first release. Applied to existing databases by
+# _migrate(); listed here so a fresh database and a migrated one converge.
+_ADDED_COLUMNS = (
+    ("notes", "TEXT DEFAULT ''"),
+    ("priority", "INTEGER DEFAULT 0"),
+    ("link_status", "TEXT DEFAULT 'unknown'"),
+    ("last_checked", "TEXT"),
+)
+
+VALID_LINK_STATUS = frozenset({"live", "dead", "unknown"})
+MIN_PRIORITY, MAX_PRIORITY = 0, 5
 
 
 class Store:
@@ -79,6 +95,22 @@ class Store:
 
     def initialize(self) -> None:
         self.conn.executescript(SCHEMA)
+        self._migrate()
+        self.conn.commit()
+
+    def _migrate(self) -> None:
+        """Add post-release columns to an existing jobs table.
+
+        Idempotent: reads the current columns and adds only what is missing,
+        so it is safe on every startup and on a fresh database.
+        """
+        existing = {
+            row["name"]
+            for row in self.conn.execute("PRAGMA table_info(jobs)").fetchall()
+        }
+        for column, ddl in _ADDED_COLUMNS:
+            if column not in existing:
+                self.conn.execute(f"ALTER TABLE jobs ADD COLUMN {column} {ddl}")
         self.conn.commit()
 
     def close(self) -> None:
@@ -177,6 +209,7 @@ class Store:
         self,
         *,
         stage: Stage | None = None,
+        stages: list[Stage] | None = None,
         include_dismissed: bool = False,
         since: str | None = None,
     ) -> list[Job]:
@@ -186,12 +219,18 @@ class Store:
         if stage is not None:
             clauses.append("stage = ?")
             params.append(stage.value)
+        if stages:
+            placeholders = ", ".join("?" for _ in stages)
+            clauses.append(f"stage IN ({placeholders})")
+            params.extend(s.value for s in stages)
         if since is not None:
             clauses.append("first_seen >= ?")
             params.append(since)
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         rows = self.conn.execute(
-            f"SELECT * FROM jobs {where} ORDER BY total_score DESC, id DESC", params
+            f"SELECT * FROM jobs {where} "
+            "ORDER BY priority DESC, total_score DESC, id DESC",
+            params,
         ).fetchall()
         return [_row_to_job(r) for r in rows]
 
@@ -207,13 +246,57 @@ class Store:
         self.conn.commit()
         self.add_event(job_id, EventKind.STAGE, f"stage -> {stage.value}", ts=ts)
 
-    def dismiss_job(self, job_id: int, reason: str, ts: str) -> None:
+    def archive_job(self, job_id: int, reason: str, ts: str) -> None:
+        """Hide a job the operator judged uninteresting. Survives re-polling."""
         self.conn.execute(
             "UPDATE jobs SET dismissed = 1, dismiss_reason = ? WHERE id = ?",
             (reason, job_id),
         )
         self.conn.commit()
         self.add_event(job_id, EventKind.DISMISS, reason, ts=ts)
+
+    def dismiss_job(self, job_id: int, reason: str, ts: str) -> None:
+        """Deprecated alias for archive_job, kept for existing callers."""
+        self.archive_job(job_id, reason, ts)
+
+    def restore_job(self, job_id: int, ts: str) -> None:
+        self.conn.execute(
+            "UPDATE jobs SET dismissed = 0, dismiss_reason = '' WHERE id = ?",
+            (job_id,),
+        )
+        self.conn.commit()
+        self.add_event(job_id, EventKind.NOTE, "restored from archive", ts=ts)
+
+    def set_note(self, job_id: int, text: str, ts: str) -> None:
+        """Replace the job's standing note and log the change as history."""
+        self.conn.execute("UPDATE jobs SET notes = ? WHERE id = ?", (text, job_id))
+        self.conn.commit()
+        self.add_event(job_id, EventKind.NOTE, text, ts=ts)
+
+    def set_priority(self, job_id: int, value: int, ts: str) -> None:
+        if not MIN_PRIORITY <= value <= MAX_PRIORITY:
+            raise ValueError(
+                f"priority must be {MIN_PRIORITY}-{MAX_PRIORITY}, got {value}"
+            )
+        self.conn.execute(
+            "UPDATE jobs SET priority = ? WHERE id = ?", (value, job_id)
+        )
+        self.conn.commit()
+        self.add_event(job_id, EventKind.NOTE, f"priority -> {value}", ts=ts)
+
+    def set_link_status(self, job_id: int, status: str, ts: str) -> None:
+        """Record whether the posting URL still resolves.
+
+        Never archives: a 404 can mean filled, moved, or a transient error, and
+        silently dropping a tracked job is worse than showing a stale row.
+        """
+        if status not in VALID_LINK_STATUS:
+            raise ValueError(f"unknown link status: {status}")
+        self.conn.execute(
+            "UPDATE jobs SET link_status = ?, last_checked = ? WHERE id = ?",
+            (status, ts, job_id),
+        )
+        self.conn.commit()
 
     # --- events --------------------------------------------------------
 
@@ -258,5 +341,6 @@ def _row_to_job(row: sqlite3.Row) -> Job:
         total_score=row["total_score"], salary_stated=row["salary_stated"],
         level=row["level"], language_flags=json.loads(row["language_flags"]),
         tags=json.loads(row["tags"]), base_cv=row["base_cv"], angle=row["angle"],
-        applied_on=row["applied_on"],
+        applied_on=row["applied_on"], notes=row["notes"], priority=row["priority"],
+        link_status=row["link_status"], last_checked=row["last_checked"],
     )
