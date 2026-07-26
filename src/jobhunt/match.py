@@ -1,0 +1,81 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from jobhunt.config import RoleFamily, ScoringConfig
+
+TITLE_WEIGHT = 2.0
+DESCRIPTION_WEIGHT = 1.0
+# Hits needed in the title alone for a family to reach its full weight.
+SATURATION = 2.0
+
+
+@dataclass
+class MatchResult:
+    relevant: bool
+    role_fit: float
+    matched_families: list[str] = field(default_factory=list)
+    language_flags: list[str] = field(default_factory=list)
+    reasons: list[str] = field(default_factory=list)
+
+
+def _family_score(family: RoleFamily, title: str, description: str) -> float:
+    hits = 0.0
+    for keyword in family.keywords:
+        if keyword in title:
+            hits += TITLE_WEIGHT
+        elif keyword in description:
+            hits += DESCRIPTION_WEIGHT
+    if hits == 0:
+        return 0.0
+    saturated = min(hits / (TITLE_WEIGHT * SATURATION), 1.0)
+    return saturated * family.weight
+
+
+def evaluate(
+    title: str, description: str, country: str, cfg: ScoringConfig
+) -> MatchResult:
+    """Score a posting for relevance. Never mutates cfg; safe to call repeatedly."""
+    title_l = (title or "").lower()
+    desc_l = (description or "").lower()
+    reasons: list[str] = []
+
+    if country and country.upper() in {c.upper() for c in cfg.excluded_countries}:
+        return MatchResult(
+            relevant=False, role_fit=0.0,
+            reasons=[f"excluded country: {country.upper()}"],
+        )
+
+    for negative in cfg.negative_keywords:
+        if negative in title_l:
+            return MatchResult(
+                relevant=False, role_fit=0.0,
+                reasons=[f"negative keyword in title: {negative}"],
+            )
+
+    scores = {f.name: _family_score(f, title_l, desc_l) for f in cfg.role_families}
+    matched = sorted(
+        (name for name, s in scores.items() if s > 0),
+        key=lambda name: scores[name], reverse=True,
+    )
+    role_fit = max(scores.values()) if scores else 0.0
+    role_fit = min(max(role_fit, 0.0), 1.0)
+
+    language_flags = []
+    known = {lang.lower() for lang in cfg.known_languages}
+    for lang, keywords in cfg.language_keywords.items():
+        if lang.lower() in known:
+            continue
+        if any(k in title_l or k in desc_l for k in keywords):
+            language_flags.append(lang)
+
+    if role_fit == 0.0:
+        reasons.append("no role family matched")
+
+    return MatchResult(
+        relevant=role_fit > 0.0,
+        role_fit=role_fit,
+        matched_families=matched,
+        language_flags=sorted(language_flags),
+        reasons=reasons,
+    )
