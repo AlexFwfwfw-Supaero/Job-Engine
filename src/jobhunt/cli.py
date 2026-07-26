@@ -33,6 +33,16 @@ def _http_client():
     return default_client()
 
 
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def _run_server(application, host: str, port: int) -> None:
+    """Indirection so tests can assert the bind without starting a server."""
+    import uvicorn
+
+    uvicorn.run(application, host=host, port=port)
+
+
 def _config_dir() -> Path:
     return Path(os.environ.get("JOBHUNT_CONFIG", "config"))
 
@@ -309,6 +319,26 @@ def report() -> None:
     path.write_text(render(context), encoding="utf-8")
     typer.echo(f"wrote {path}")
     store.close()
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host"),
+    port: int = typer.Option(8000, "--port"),
+) -> None:
+    """Run the local web UI."""
+    if host not in LOOPBACK_HOSTS:
+        typer.echo(
+            f"refusing to bind {host}: this database holds your whole job search, "
+            "so the server is loopback-only. Use 127.0.0.1."
+        )
+        raise typer.Exit(code=2)
+
+    from jobhunt.web.app import create_app
+    from jobhunt.web.deps import Deps
+
+    typer.echo(f"serving on http://{host}:{port}  (ctrl-c to stop)")
+    _run_server(create_app(Deps.from_env()), host, port)
 
 
 if __name__ == "__main__":
