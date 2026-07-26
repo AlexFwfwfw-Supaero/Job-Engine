@@ -1,28 +1,53 @@
-# EVERY DATE BELOW IS A PLACEHOLDER MARKED `VERIFY`.
-# They encode the approximate annual pattern, not confirmed dates.
-# Check each against the source site and replace — a missed annual cycle
-# costs a year.
+# Verified 2026-07-26 against official sources where marked CHECKED.
+# Entries still marked VERIFY are estimates. Re-check annually — a missed
+# cycle costs a year.
 deadlines:
-  - name: ESA Young Graduate Trainee
+  - name: ESA Graduate Trainee (EGT, formerly YGT)
     employer: ESA
-    opens: 2026-10-01
-    closes: 2026-11-30
-    url: "https://jobs.esa.int/"
+    opens: 2027-02-01
+    closes: 2027-03-31
+    url: "https://www.esa.int/About_Us/Careers_at_ESA/Graduates_ESA_Graduate_Trainees"
     lead_days: 90
-    notes: "VERIFY — YGT typically opens in autumn for the following autumn intake"
+    notes: >
+      CHECKED — programme renamed from Young Graduate Trainee to ESA Graduate
+      Trainee. Vacancies published every February, open roughly one month.
+      Pre-selection and interviews Mar-May, decisions June, START DATES
+      SEPTEMBER-OCTOBER. Eligibility: Master's, within one year of graduation,
+      max one year post-Master's experience, ESA member/associate/cooperating
+      state national. Closing date is approximate — confirm when the campaign
+      opens.
 
-  - name: Airbus graduate programme intake
+  - name: Airbus Global Graduate Programme (AGGP) 2027
     employer: Airbus Defence and Space
     opens: 2026-09-01
-    closes: 2026-12-31
-    url: "https://www.airbus.com/en/careers"
-    lead_days: 60
-    notes: "VERIFY — confirm intake windows on the careers site"
+    closes: 2026-10-31
+    url: "https://www.airbus.com/en/careers/students-and-graduates/graduates/aggp"
+    lead_days: 120
+    notes: >
+      CHECKED — AGGP 2027 opens 1 September 2026. ROLLING CLOSE: applications
+      close as soon as enough candidates apply, so the close date here is a
+      conservative marker, not a real deadline. Apply in the first days.
+      One application per cycle only.
 
-  - name: Thales graduate programme intake
+  - name: Thales Graduate Program Ingenierie (France)
     employer: Thales
-    opens: 2026-09-01
-    closes: 2026-12-31
-    url: "https://www.thalesgroup.com/en/careers"
+    opens: 2027-03-01
+    closes: 2027-03-31
+    url: "https://careers.thalesgroup.com/global/en/france-early-careers"
     lead_days: 60
-    notes: "VERIFY — confirm intake windows on the careers site"
+    notes: >
+      VERIFY — French engineering graduate applications ran to 12 March for the
+      2026 cohort; the window is typically March-April. Dates here are shifted a
+      year forward by pattern, not confirmed.
+
+  - name: French contrat doctoral campaigns (ecoles doctorales)
+    employer: ISAE-SUPAERO / ONERA / others
+    opens: 2027-05-01
+    closes: 2027-07-15
+    url: "https://theses.fr/"
+    lead_days: 90
+    notes: >
+      VERIFY — each ecole doctorale runs its own campaign, typically opening
+      early May with deadlines spread across May-August for an autumn start.
+      Some run a second phase into late August. Confirm per school; ISAE-SUPAERO
+      and ONERA are the Toulouse ones that matter here.
