@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job search — {{ generated_on }}</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 70rem;
+           padding: 0 1rem; line-height: 1.5; }
+    h1 { margin-bottom: 0; }
+    .meta { opacity: 0.7; font-size: 0.9rem; }
+    section { margin-top: 2.5rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; padding: 0.4rem 0.6rem;
+             border-bottom: 1px solid rgba(128,128,128,0.3); }
+    th { font-size: 0.8rem; text-transform: uppercase; opacity: 0.7; }
+    .score { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .breakdown { font-size: 0.8rem; opacity: 0.7; }
+    .flag { font-size: 0.75rem; border: 1px solid currentColor; border-radius: 3px;
+            padding: 0 0.3rem; opacity: 0.8; }
+    .dormant { color: #b00; }
+    .closing_soon { color: #b00; font-weight: 600; }
+    .empty { opacity: 0.6; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>Job search</h1>
+  <p class="meta">
+    Generated {{ generated_on }} ·
+    {{ totals.jobs }} jobs · {{ totals.employers }} employers
+  </p>
+
+  <section>
+    <h2>Upcoming deadlines</h2>
+    {% if deadlines %}
+    <table>
+      <tr><th>Cycle</th><th>Employer</th><th>Closes</th><th>Days left</th><th>State</th></tr>
+      {% for d in deadlines %}
+      <tr>
+        <td>{% if d.url %}<a href="{{ d.url }}">{{ d.name }}</a>{% else %}{{ d.name }}{% endif %}</td>
+        <td>{{ d.employer }}</td>
+        <td>{{ d.closes }}</td>
+        <td class="score">{{ d.days_left }}</td>
+        <td class="{{ d.state }}">{{ d.state.replace('_', ' ') }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="empty">Nothing in the lead window.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Follow-ups due</h2>
+    {% if due %}
+    <table>
+      <tr><th>Job</th><th>Days since activity</th><th>Level</th></tr>
+      {% for item in due %}
+      <tr>
+        <td>{{ item.title }}</td>
+        <td class="score">{{ item.days_since }}</td>
+        <td class="{{ item.level }}">{{ item.level }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="empty">Nothing overdue.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>New in the last week</h2>
+    {% if new_jobs %}
+    <table>
+      <tr><th>Title</th><th>Employer</th><th>Where</th><th>Compensation</th><th>Score</th></tr>
+      {% for v in new_jobs %}
+      <tr>
+        <td><a href="{{ v.job.url }}">{{ v.job.title }}</a></td>
+        <td>{{ v.employer_name }}</td>
+        <td>{{ v.job.city }}{% if v.job.country %}, {{ v.job.country }}{% endif %}</td>
+        <td>{{ v.comp_label }}</td>
+        <td class="score">{{ '%.2f'|format(v.job.total_score) }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="empty">Nothing new.</p>{% endif %}
+  </section>
+
+  {% for stage, views in by_stage.items() %}
+  <section>
+    <h2>{{ stage|capitalize }} <span class="meta">({{ views|length }})</span></h2>
+    {% if views %}
+    <table>
+      <tr><th>Title</th><th>Employer</th><th>Where</th><th>Compensation</th>
+          <th>Score</th><th>Flags</th></tr>
+      {% for v in views %}
+      <tr>
+        <td><a href="{{ v.job.url }}">{{ v.job.title }}</a></td>
+        <td>{{ v.employer_name }}</td>
+        <td>{{ v.job.city }}{% if v.job.country %}, {{ v.job.country }}{% endif %}</td>
+        <td>{{ v.comp_label }}</td>
+        <td class="score">
+          {{ '%.2f'|format(v.job.total_score) }}
+          <div class="breakdown">
+            fit {{ '%.2f'|format(v.job.role_fit) }} ·
+            comp {{ '%.2f'|format(v.job.comp_score) }} ·
+            qol {{ '%.2f'|format(v.job.qol_score) }}
+          </div>
+        </td>
+        <td>
+          {% for f in v.job.language_flags %}<span class="flag">{{ f }}</span> {% endfor %}
+          {% for t in v.job.tags %}<span class="flag">{{ t }}</span> {% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="empty">Nothing here.</p>{% endif %}
+  </section>
+  {% endfor %}
+
+  <section>
+    <h2>Employers not polled — check these yourself</h2>
+    {% if unwatched_employers %}
+    <table>
+      <tr><th>Employer</th><th>Careers page</th><th>Last checked</th></tr>
+      {% for e in unwatched_employers %}
+      <tr>
+        <td>{{ e.name }}</td>
+        <td>{% if e.careers_url %}<a href="{{ e.careers_url }}">{{ e.careers_url }}</a>{% endif %}</td>
+        <td>{{ e.last_manual_check or 'never' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="empty">Every employer is polled.</p>{% endif %}
+  </section>
+</body>
+</html>
