@@ -1,6 +1,9 @@
-data/jobs.db
+.venv/
 __pycache__/
 *.pyc
-.venv/
+*.egg-info/
+
+# Operational state, not authored work
+data/jobs.db
+data/postings/
 dashboard.html
-.venv/
