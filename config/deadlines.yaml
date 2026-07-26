@@ -1,0 +1,28 @@
+# EVERY DATE BELOW IS A PLACEHOLDER MARKED `VERIFY`.
+# They encode the approximate annual pattern, not confirmed dates.
+# Check each against the source site and replace — a missed annual cycle
+# costs a year.
+deadlines:
+  - name: ESA Young Graduate Trainee
+    employer: ESA
+    opens: 2026-10-01
+    closes: 2026-11-30
+    url: "https://jobs.esa.int/"
+    lead_days: 90
+    notes: "VERIFY — YGT typically opens in autumn for the following autumn intake"
+
+  - name: Airbus graduate programme intake
+    employer: Airbus Defence and Space
+    opens: 2026-09-01
+    closes: 2026-12-31
+    url: "https://www.airbus.com/en/careers"
+    lead_days: 60
+    notes: "VERIFY — confirm intake windows on the careers site"
+
+  - name: Thales graduate programme intake
+    employer: Thales
+    opens: 2026-09-01
+    closes: 2026-12-31
+    url: "https://www.thalesgroup.com/en/careers"
+    lead_days: 60
+    notes: "VERIFY — confirm intake windows on the careers site"

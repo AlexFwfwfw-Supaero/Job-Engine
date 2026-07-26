@@ -1,0 +1,63 @@
+# Seed list, NOT a verified one. Every entry is `ats: manual` until the
+# discovery pass establishes which platform each employer actually uses.
+# Cities and countries are the main sites; several of these have more.
+employers:
+  # --- industry: GNSS / PNT ---
+  - {name: u-blox, country: CH, city: Thalwil, ats: manual, tags: [gnss, industry],
+     careers_url: "https://www.u-blox.com/en/careers"}
+  - {name: Septentrio, country: BE, city: Leuven, ats: manual, tags: [gnss, industry],
+     careers_url: "https://www.septentrio.com/en/careers"}
+  - {name: Rohde & Schwarz, country: DE, city: Munich, ats: manual, tags: [gnss, radar, industry],
+     careers_url: "https://www.rohde-schwarz.com/careers"}
+  - {name: Trimble, country: DE, city: Raunheim, ats: manual, tags: [gnss, industry],
+     careers_url: "https://careers.trimble.com/"}
+  - {name: Hexagon, country: CH, city: Heerbrugg, ats: manual, tags: [gnss, industry],
+     careers_url: "https://hexagon.com/company/careers"}
+  - {name: IFEN, country: DE, city: Poing, ats: manual, tags: [gnss, sme],
+     careers_url: "https://www.ifen.com/company/careers/"}
+  - {name: Qascom, country: IT, city: Bassano del Grappa, ats: manual, tags: [gnss, pnt, sme],
+     careers_url: "https://www.qascom.it/careers/"}
+  - {name: NavCert, country: DE, city: Braunschweig, ats: manual, tags: [gnss, sme],
+     careers_url: "https://www.navcert.de/"}
+
+  # --- industry: primes and space ---
+  - {name: Airbus Defence and Space, country: DE, city: Munich, ats: manual, tags: [space, defense],
+     careers_url: "https://www.airbus.com/en/careers"}
+  - {name: Thales Alenia Space, country: FR, city: Toulouse, ats: manual, tags: [space, defense],
+     careers_url: "https://www.thalesaleniaspace.com/en/careers"}
+  - {name: Thales, country: FR, city: Toulouse, ats: manual, tags: [radar, defense],
+     careers_url: "https://www.thalesgroup.com/en/careers"}
+  - {name: Safran Data Systems, country: FR, city: Toulouse, ats: manual, tags: [pnt, industry],
+     careers_url: "https://www.safran-group.com/careers"}
+  - {name: GMV, country: ES, city: Madrid, ats: manual, tags: [gnss, space],
+     careers_url: "https://www.gmv.com/en/talent"}
+  - {name: Telespazio, country: IT, city: Rome, ats: manual, tags: [gnss, space],
+     careers_url: "https://www.telespazio.com/en/careers"}
+  - {name: Leonardo, country: IT, city: Rome, ats: manual, tags: [radar, defense],
+     careers_url: "https://www.leonardo.com/en/careers"}
+
+  # --- agencies and research ---
+  - {name: ESA, country: NL, city: Noordwijk, ats: manual, tags: [space, agency, ygt],
+     careers_url: "https://jobs.esa.int/"}
+  - {name: DLR, country: DE, city: Oberpfaffenhofen, ats: manual, tags: [gnss, research, phd],
+     careers_url: "https://www.dlr.de/en/careers"}
+  - {name: Fraunhofer IIS, country: DE, city: Nuremberg, ats: manual, tags: [gnss, research, phd],
+     careers_url: "https://www.iis.fraunhofer.de/en/jobs.html"}
+  - {name: CNES, country: FR, city: Toulouse, ats: manual, tags: [space, agency],
+     careers_url: "https://recrutement.cnes.fr/"}
+  - {name: ONERA, country: FR, city: Toulouse, ats: manual, tags: [radar, research, phd],
+     careers_url: "https://www.onera.fr/en/jobs"}
+
+  # --- universities ---
+  - {name: Universitaet der Bundeswehr Muenchen, country: DE, city: Munich,
+     ats: manual, tags: [gnss, academic, phd],
+     careers_url: "https://www.unibw.de/home/stellenangebote",
+     notes: "Institute of Space Technology and Space Applications — strong GNSS group"}
+  - {name: ISAE-SUPAERO, country: FR, city: Toulouse, ats: manual, tags: [gnss, academic, phd],
+     careers_url: "https://www.isae-supaero.fr/en/"}
+  - {name: TU Delft, country: NL, city: Delft, ats: manual, tags: [gnss, academic, phd],
+     careers_url: "https://www.tudelft.nl/over-tu-delft/werken-bij-tu-delft"}
+  - {name: KU Leuven, country: BE, city: Leuven, ats: manual, tags: [academic, phd],
+     careers_url: "https://www.kuleuven.be/personeel/jobsite/vacatures"}
+  - {name: Politecnico di Torino, country: IT, city: Turin, ats: manual, tags: [gnss, academic, phd],
+     careers_url: "https://www.polito.it/en/work-with-us"}
