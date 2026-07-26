@@ -1,0 +1,20 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1>Deadlines</h1>
+<p class="sub">Edit these in <code>config/deadlines.yaml</code>. Entries marked
+VERIFY there have not been checked against the source.</p>
+{% if deadlines %}
+<table>
+  <tr><th>Cycle</th><th>Employer</th><th>Closes</th><th>Days left</th><th>State</th></tr>
+  {% for d in deadlines %}
+  <tr>
+    <td>{% if d.url %}<a href="{{ d.url }}">{{ d.name }}</a>{% else %}{{ d.name }}{% endif %}</td>
+    <td>{{ d.employer }}</td><td>{{ d.closes }}</td>
+    <td class="score">{{ d.days_left }}</td>
+    <td class="{{ 'warn' if d.state == 'closing_soon' else '' }}">
+      {{ d.state.replace('_', ' ') }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}<p class="empty">Nothing in the lead window.</p>{% endif %}
+{% endblock %}

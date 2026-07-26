@@ -1,0 +1,20 @@
+{% extends "base.html.j2" %}
+{% import "_row.html.j2" as r %}
+{% block content %}
+<h1>Interested <span class="sub">({{ rows|length }})</span></h1>
+{% if rows %}
+<table>
+  <tr><th>Job</th><th>Compensation</th><th>Score</th>
+      <th>Priority &amp; note</th><th>Move</th></tr>
+  {% for row in rows %}
+  <tr>
+    <td>{{ r.identity(row) }}</td>
+    <td>{{ row.comp_label }}</td>
+    <td>{{ r.scorecell(row.job) }}</td>
+    <td>{{ r.priority_and_note(row.job, 'interested') }}</td>
+    <td>{{ r.triage(row.job, 'interested') }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}<p class="empty">Nothing shortlisted yet.</p>{% endif %}
+{% endblock %}

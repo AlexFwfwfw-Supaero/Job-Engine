@@ -1,0 +1,39 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1>Overview</h1>
+<div class="cards">
+  {% for slug, label, blurb in tabs %}{% if slug != 'overview' %}
+  <div class="card">
+    <div class="n">{{ counts.get(slug, 0) }}</div>
+    <strong><a href="/{{ slug }}">{{ label }}</a></strong>
+    <p class="sub">{{ blurb }}</p>
+  </div>
+  {% endif %}{% endfor %}
+</div>
+
+<h2>Follow-ups due</h2>
+{% if due %}
+<table>
+  <tr><th>Job</th><th>Days quiet</th><th>Level</th></tr>
+  {% for item in due %}
+  <tr><td>{{ item.title }}</td><td class="score">{{ item.days_since }}</td>
+      <td class="{{ 'warn' if item.level == 'dormant' else '' }}">{{ item.level }}</td></tr>
+  {% endfor %}
+</table>
+{% else %}<p class="empty">Nothing overdue.</p>{% endif %}
+
+<h2>Closing soon</h2>
+{% if deadlines %}
+<table>
+  <tr><th>Cycle</th><th>Closes</th><th>Days left</th><th>State</th></tr>
+  {% for d in deadlines %}
+  <tr>
+    <td>{% if d.url %}<a href="{{ d.url }}">{{ d.name }}</a>{% else %}{{ d.name }}{% endif %}</td>
+    <td>{{ d.closes }}</td><td class="score">{{ d.days_left }}</td>
+    <td class="{{ 'warn' if d.state == 'closing_soon' else '' }}">
+      {{ d.state.replace('_', ' ') }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}<p class="empty">Nothing in the lead window.</p>{% endif %}
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html.j2" %}
+{% import "_row.html.j2" as r %}
+{% block content %}
+<h1>Applied</h1>
+{% for stage, rows in groups.items() %}
+<h2>{{ stage|capitalize }} <span class="sub">({{ rows|length }})</span></h2>
+{% if rows %}
+<table>
+  <tr><th>Job</th><th>Quiet for</th><th>Score</th>
+      <th>Priority &amp; note</th><th>Advance</th></tr>
+  {% for row in rows %}
+  <tr>
+    <td>{{ r.identity(row) }}</td>
+    <td class="score {{ 'warn' if row.stale_days and row.stale_days >= 14 else '' }}">
+      {{ row.stale_days if row.stale_days is not none else '—' }}d</td>
+    <td>{{ r.scorecell(row.job) }}</td>
+    <td>{{ r.priority_and_note(row.job, 'applied') }}</td>
+    <td>
+      <form class="inline" method="post" action="/jobs/{{ row.job.id }}/stage">
+        <input type="hidden" name="return_to" value="applied">
+        <select name="stage">
+          {% for s in ['applied', 'screening', 'interview', 'offer',
+                       'rejected', 'withdrawn'] %}
+          <option value="{{ s }}" {{ 'selected' if row.job.stage.value == s else '' }}>
+            {{ s }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Move</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}<p class="empty">Nothing at this stage.</p>{% endif %}
+{% endfor %}
+{% endblock %}

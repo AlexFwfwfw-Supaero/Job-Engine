@@ -1,0 +1,55 @@
+{% macro triage(job, return_to) %}
+  <form class="inline" method="post" action="/jobs/{{ job.id }}/stage">
+    <input type="hidden" name="return_to" value="{{ return_to }}">
+    <input type="hidden" name="stage" value="shortlisted">
+    <button type="submit">Interested</button>
+  </form>
+  <form class="inline" method="post" action="/jobs/{{ job.id }}/stage">
+    <input type="hidden" name="return_to" value="{{ return_to }}">
+    <input type="hidden" name="stage" value="applied">
+    <button type="submit">Applied</button>
+  </form>
+  <form class="inline" method="post" action="/jobs/{{ job.id }}/archive">
+    <input type="hidden" name="return_to" value="{{ return_to }}">
+    <input name="reason" placeholder="reason" size="14">
+    <button type="submit">Archive</button>
+  </form>
+{% endmacro %}
+
+{% macro identity(row) %}
+  <a href="{{ row.job.url }}" target="_blank" rel="noopener">{{ row.job.title }}</a>
+  {% if row.job.link_status == 'dead' %}<span class="flag warn">dead link</span>{% endif %}
+  <div class="sub">
+    {{ row.employer_name }}
+    {% if row.job.city %}· {{ row.job.city }}{% endif %}
+    {% if row.job.country %}, {{ row.job.country }}{% endif %}
+  </div>
+{% endmacro %}
+
+{% macro scorecell(job) %}
+  <span class="score">{{ '%.2f'|format(job.total_score) }}</span>
+  <div class="breakdown">
+    fit {{ '%.2f'|format(job.role_fit) }} ·
+    comp {{ '%.2f'|format(job.comp_score) }} ·
+    qol {{ '%.2f'|format(job.qol_score) }}
+  </div>
+{% endmacro %}
+
+{% macro priority_and_note(job, return_to) %}
+  <form class="inline" method="post" action="/jobs/{{ job.id }}/priority">
+    <input type="hidden" name="return_to" value="{{ return_to }}">
+    <select name="value" onchange="this.form.submit()">
+      {% for n in [0, 1, 2, 3, 4, 5] %}
+      <option value="{{ n }}" {{ 'selected' if job.priority == n else '' }}>
+        {{ 'unset' if n == 0 else n }}
+      </option>
+      {% endfor %}
+    </select>
+    <noscript><button type="submit">Set</button></noscript>
+  </form>
+  <form method="post" action="/jobs/{{ job.id }}/note">
+    <input type="hidden" name="return_to" value="{{ return_to }}">
+    <textarea name="text" placeholder="what matters about this one">{{ job.notes }}</textarea>
+    <button type="submit">Save note</button>
+  </form>
+{% endmacro %}

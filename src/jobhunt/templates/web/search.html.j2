@@ -1,0 +1,54 @@
+{% extends "base.html.j2" %}
+{% import "_row.html.j2" as r %}
+{% block content %}
+<h1>Job Search</h1>
+
+<div class="bar">
+  <form method="post" action="/actions/search">
+    <input type="hidden" name="return_to" value="search">
+    <button type="submit" {{ 'disabled' if not search_available else '' }}>Search now</button>
+  </form>
+  <form method="post" action="/actions/refresh">
+    <input type="hidden" name="return_to" value="search">
+    <button type="submit">Update current jobs</button>
+  </form>
+</div>
+{% if not search_available %}
+<p class="sub">Automatic search is not built yet — ATS polling is a separate piece of
+work. Until then, add jobs by URL below; every job you add is tracked the same way.</p>
+{% endif %}
+
+<h2>Add a job</h2>
+<form method="post" action="/jobs" class="bar">
+  <div><label for="url">Posting URL</label>
+    <input id="url" name="url" size="42" required></div>
+  <div><label for="employer">Employer</label>
+    <input id="employer" name="employer" list="employers" required>
+    <datalist id="employers">
+      {% for name in employers %}<option value="{{ name }}">{% endfor %}
+    </datalist></div>
+  <div><label for="city">City</label><input id="city" name="city" size="12"></div>
+  <div><label for="country">Country</label><input id="country" name="country" size="4"></div>
+  <div><label for="level">Level</label>
+    <select id="level" name="level">
+      <option value="junior">junior</option><option value="phd">phd</option>
+    </select></div>
+  <div><label for="tags">Tags</label><input id="tags" name="tags" size="12"></div>
+  <button type="submit">Add</button>
+</form>
+
+<h2>Spotted <span class="sub">({{ rows|length }})</span></h2>
+{% if rows %}
+<table>
+  <tr><th>Job</th><th>Compensation</th><th>Score</th><th>Triage</th></tr>
+  {% for row in rows %}
+  <tr>
+    <td>{{ r.identity(row) }}</td>
+    <td>{{ row.comp_label }}</td>
+    <td>{{ r.scorecell(row.job) }}</td>
+    <td>{{ r.triage(row.job, 'search') }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}<p class="empty">Nothing spotted. Add one above.</p>{% endif %}
+{% endblock %}

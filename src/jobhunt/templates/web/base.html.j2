@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ active|capitalize }} — job search</title>
+  <style>
+    :root { color-scheme: light dark; --line: rgba(128,128,128,0.3); }
+    body { font-family: system-ui, sans-serif; margin: 0 auto; max-width: 78rem;
+           padding: 1rem; line-height: 1.5; }
+    nav { display: flex; gap: 0.25rem; flex-wrap: wrap; border-bottom: 2px solid var(--line);
+          margin-bottom: 1.5rem; }
+    nav a { padding: 0.5rem 0.9rem; text-decoration: none; color: inherit;
+            border: 1px solid transparent; border-bottom: none; border-radius: 5px 5px 0 0; }
+    nav a.on { border-color: var(--line); font-weight: 600;
+               background: rgba(128,128,128,0.12); }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--line);
+             vertical-align: top; }
+    th { font-size: 0.75rem; text-transform: uppercase; opacity: 0.7; }
+    .score { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .breakdown, .sub { font-size: 0.78rem; opacity: 0.7; }
+    .flag { font-size: 0.72rem; border: 1px solid currentColor; border-radius: 3px;
+            padding: 0 0.3rem; }
+    .warn { color: #b00; }
+    .empty { opacity: 0.6; font-style: italic; }
+    form.inline { display: inline; }
+    .cards { display: grid; gap: 1rem;
+             grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+    .card { border: 1px solid var(--line); border-radius: 6px; padding: 0.9rem; }
+    .card .n { font-size: 2rem; font-variant-numeric: tabular-nums; }
+    .bar { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: end;
+           margin-bottom: 1.25rem; }
+    input, select, textarea, button { font: inherit; padding: 0.3rem 0.4rem; }
+    textarea { width: 100%; min-height: 3rem; }
+    label { font-size: 0.78rem; opacity: 0.8; display: block; }
+  </style>
+</head>
+<body>
+  <nav>
+    {% for slug, label, _ in tabs %}
+    <a href="/{{ slug }}" class="{{ 'on' if slug == active else '' }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+  {% block content %}{% endblock %}
+</body>
+</html>
