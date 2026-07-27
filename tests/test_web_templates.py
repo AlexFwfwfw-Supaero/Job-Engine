@@ -124,3 +124,27 @@ def test_dead_links_are_flagged_not_hidden(store, deps):
     html = render_tab("search", search_context(store, deps))
     assert "GNSS Engineer" in html
     assert "dead link" in html
+
+
+def test_search_tab_lists_linkedin_searches_grouped_by_city(store, deps, config_dir):
+    (config_dir / "scoring.yaml").write_text(
+        "weights: {comp: 0.3, qol: 0.2, fit: 0.5}\n"
+        "qol_weights: {sunshine: 0.5, nature: 0.3, rent: 0.2}\n"
+        "role_families: [{name: gnss, weight: 1.0, keywords: [gnss]}]\n"
+        "poll_search_terms: [gnss, radar]\n"
+    )
+    (config_dir / "cities.yaml").write_text(
+        "cities:\n"
+        "  - {name: Toulouse, country: FR, sunshine_hours: 2100, nature: 7,"
+        " rent_index: 750}\n"
+    )
+    html = render_tab("search", search_context(store, deps))
+    assert "Toulouse, France" in html
+    assert "linkedin.com/jobs/search/" in html
+    assert "keywords=gnss" in html
+    assert "keywords=radar" in html
+
+
+def test_search_tab_explains_why_linkedin_is_not_polled(store, deps):
+    html = render_tab("search", search_context(store, deps))
+    assert "forbid scraping" in html

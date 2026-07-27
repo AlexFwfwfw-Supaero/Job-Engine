@@ -10,6 +10,7 @@ import typer
 from jobhunt.config import (
     load_cities, load_comp, load_deadlines, load_employers, load_scoring,
 )
+from jobhunt.linkedin import build_links, locations_from_cities
 from jobhunt.links import apply_results, check_jobs
 from jobhunt.models import Stage
 from jobhunt.poll import SOURCE_REGISTRY, poll_all
@@ -347,6 +348,29 @@ def due() -> None:
     if not cycles:
         typer.echo("  none")
     store.close()
+
+
+@app.command()
+def linkedin(
+    city: str = typer.Option("", "--city", help="Only this city, e.g. Toulouse"),
+    term: str = typer.Option("", "--term", help="Only this search term, e.g. gnss"),
+) -> None:
+    """Print LinkedIn search links to open by hand.
+
+    LinkedIn cannot be polled — no public API, and scraping breaks its terms —
+    so this builds the searches instead of running them.
+    """
+    cfg, _comp_cfg, cities = _load_all()
+    links = build_links(cfg, locations_from_cities(cities))
+    if city:
+        links = [ln for ln in links if ln.location.lower().startswith(city.lower())]
+    if term:
+        links = [ln for ln in links if term.lower() in ln.term.lower()]
+
+    for link in links:
+        typer.echo(f"{link.label}\n  {link.url}")
+    if not links:
+        typer.echo("no searches match — check --city and --term against your config")
 
 
 @app.command()

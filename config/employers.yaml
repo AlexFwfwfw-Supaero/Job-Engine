@@ -28,14 +28,25 @@ employers:
      notes: "CONFIRMED 2026-07-26 — Workday tenant 'ag', site 'Airbus'. POST JSON
              returns jobPostings. Covers all Airbus divisions, not just DS."}
   - {name: Thales Alenia Space, country: FR, city: Toulouse, ats: manual, tags: [space, defense],
-     careers_url: "https://www.thalesaleniaspace.com/en/careers",
-     notes: "careers_url 404s — needs a correct URL before polling can be scoped"}
-  - {name: Thales, country: FR, city: Toulouse, ats: manual, tags: [radar, defense],
-     careers_url: "https://www.thalesgroup.com/en/careers"}
+     careers_url: "https://thales.wd3.myworkdayjobs.com/en-US/Careers",
+     notes: "TAS postings live in the group-wide Thales Workday tenant, which the
+             Thales entry already polls. Left unpolled so jobs are not stored twice."}
+  - {name: Thales, country: FR, city: Toulouse, ats: workday,
+     ats_endpoint: "https://thales.wd3.myworkdayjobs.com/wday/cxs/thales/Careers/jobs",
+     poll_enabled: true, tags: [gnss, radar, defense],
+     careers_url: "https://thales.wd3.myworkdayjobs.com/en-US/Careers",
+     notes: "CONFIRMED 2026-07-27 — Workday tenant 'thales', site 'Careers', ~2000
+             jobs. Covers the whole group including Thales Alenia Space, so the
+             separate TAS entry stays manual to avoid double-polling."}
   - {name: Safran Data Systems, country: FR, city: Toulouse, ats: manual, tags: [pnt, industry],
-     careers_url: "https://www.safran-group.com/careers"}
+     careers_url: "https://careers.safran-group.com/accueil.aspx?LCID=1036",
+     notes: "No public ATS API. Probed 2026-07-27: not on Workday, Greenhouse,
+             SmartRecruiters, Lever, Ashby, Recruitee or Personio. The portal is a
+             JS-rendered .aspx app. Manual entry only until someone maps it."}
   - {name: GMV, country: ES, city: Madrid, ats: manual, tags: [gnss, space],
-     careers_url: "https://www.gmv.com/en/talent"}
+     careers_url: "https://gmv.csod.com/ux/ats/careersite/4/home?c=gmv&lang=en-US",
+     notes: "Cornerstone OnDemand (gmv.csod.com, careerSiteId 4), confirmed
+             2026-07-27. Pollable once a cornerstone source module exists."}
   - {name: Telespazio, country: IT, city: Rome, ats: manual, tags: [gnss, space],
      careers_url: "https://www.telespazio.com/en/careers"}
   - {name: Leonardo, country: IT, city: Rome, ats: manual, tags: [radar, defense],

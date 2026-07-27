@@ -27,6 +27,23 @@ discarded.</p>
 Until then, add jobs by URL below.</p>
 {% endif %}
 
+<h2>LinkedIn <span class="sub">(manual channel)</span></h2>
+<p class="sub">LinkedIn has no public jobs API and its terms forbid scraping, so
+these searches cannot be polled. What the tracker does instead is build the
+searches for you — each link is one of your role terms in one target city,
+restricted to the last 7 days and sorted newest first. Open a few, then add
+anything worth keeping with the form below.</p>
+{% for location, links in linkedin_groups %}
+<details>
+  <summary>{{ location }} <span class="sub">({{ links|length }} searches)</span></summary>
+  <p>{% for link in links %}<a href="{{ link.url }}" target="_blank"
+     rel="noopener noreferrer">{{ link.term }}</a>{{ ' · ' if not loop.last }}{% endfor %}</p>
+</details>
+{% else %}
+<p class="empty">No LinkedIn searches — add <code>poll_search_terms</code> to
+<code>config/scoring.yaml</code> and cities to <code>config/cities.yaml</code>.</p>
+{% endfor %}
+
 <h2>Add a job</h2>
 <form method="post" action="/jobs" class="bar">
   <div><label for="url">Posting URL</label>

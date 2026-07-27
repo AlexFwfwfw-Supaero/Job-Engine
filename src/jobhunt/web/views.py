@@ -8,6 +8,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from jobhunt.config import load_cities, load_comp, load_deadlines, load_scoring
 from jobhunt.deadlines import upcoming
+from jobhunt.linkedin import build_links, locations_from_cities
 from jobhunt.models import Job, Stage
 from jobhunt.score import compensation
 from jobhunt.staleness import due_jobs
@@ -111,11 +112,21 @@ def overview_context(store: Store, deps: Deps) -> dict:
     }
 
 
+def _linkedin_groups(cfg, cities) -> list[tuple[str, list]]:
+    """LinkedIn search links grouped by location, one group per city."""
+    groups: dict[str, list] = {}
+    for link in build_links(cfg, locations_from_cities(cities)):
+        groups.setdefault(link.location, []).append(link)
+    return sorted(groups.items())
+
+
 def search_context(store: Store, deps: Deps) -> dict:
     jobs = store.list_jobs(stage=Stage.SPOTTED)
     employers = store.list_employers()
     pollable = [e for e in employers if e.poll_enabled]
+    cfg, _comp_cfg, cities = _load_config(deps)
     return {
+        "linkedin_groups": _linkedin_groups(cfg, cities),
         "tabs": TABS,
         "active": "search",
         "rows": _rows(store, jobs, deps),
