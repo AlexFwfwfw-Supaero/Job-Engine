@@ -13,9 +13,18 @@
     <button type="submit">Update current jobs</button>
   </form>
 </div>
-{% if not search_available %}
-<p class="sub">Automatic search is not built yet — ATS polling is a separate piece of
-work. Until then, add jobs by URL below; every job you add is tracked the same way.</p>
+{% if search_available %}
+<p class="sub">Searching polls {{ pollable|length }} employer(s):
+{{ pollable|join(', ') }}.
+{% if unwatched_count %}The other {{ unwatched_count }} are not polled — check those
+yourself and add by URL below.{% endif %}
+Only postings matching your role families are stored; the rest are counted and
+discarded.</p>
+{% else %}
+<p class="sub">No employer has polling enabled yet. Set <code>ats</code>,
+<code>ats_endpoint</code> and <code>poll_enabled</code> in
+<code>config/employers.yaml</code>, then run <code>jobs sync-employers</code>.
+Until then, add jobs by URL below.</p>
 {% endif %}
 
 <h2>Add a job</h2>

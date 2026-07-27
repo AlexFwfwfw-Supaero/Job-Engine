@@ -12,6 +12,7 @@ from jobhunt.config import (
 )
 from jobhunt.links import apply_results, check_jobs
 from jobhunt.models import Stage
+from jobhunt.poll import SOURCE_REGISTRY, poll_all
 from jobhunt.report import build_context, render
 from jobhunt.snapshot import default_client
 from jobhunt.store import Store
@@ -228,6 +229,47 @@ def restore(job_id: int) -> None:
     store = _open_store()
     store.restore_job(job_id, ts=_now())
     typer.echo(f"[{job_id}] restored")
+    store.close()
+
+
+@app.command()
+def poll(
+    employer: Optional[str] = typer.Option(None, "--employer", "-e"),
+    max_pages: int = typer.Option(5, "--max-pages"),
+) -> None:
+    """Fetch new postings from every employer with polling enabled."""
+    cfg, comp_cfg, cities = _load_all()
+    store = _open_store()
+    client = _http_client()
+    try:
+        reports = poll_all(
+            store, SOURCE_REGISTRY, client, cfg, comp_cfg, cities,
+            now=_now(), only=employer, max_pages=max_pages,
+        )
+    finally:
+        close = getattr(client, "close", None)
+        if close:
+            close()
+
+    if not reports:
+        typer.echo(
+            "no employers are set up for polling. Set ats and poll_enabled "
+            "in config/employers.yaml, then run: jobs sync-employers"
+        )
+        store.close()
+        return
+
+    for report in reports:
+        if report.error:
+            typer.echo(f"{report.employer}: ERROR {report.error}")
+            continue
+        typer.echo(
+            f"{report.employer} [{report.source}]: seen {report.seen}, "
+            f"stored {report.stored} ({report.new} new), "
+            f"skipped {report.skipped}"
+        )
+    total_new = sum(r.new for r in reports)
+    typer.echo(f"\n{total_new} new job(s). See them with: jobs list")
     store.close()
 
 

@@ -82,9 +82,18 @@ def test_search_rows_offer_triage_buttons(store, deps):
     assert 'action="/jobs/1/stage"' in html
 
 
-def test_search_tab_states_polling_is_unavailable(store, deps):
+def test_search_tab_says_when_no_employer_is_pollable(store, deps):
     html = render_tab("search", search_context(store, deps))
-    assert "not built yet" in html
+    assert "No employer has polling enabled" in html
+
+
+def test_search_tab_names_the_polled_employers(store, deps):
+    store.upsert_employer(Employer(name="Airbus", ats="workday",
+                                   poll_enabled=True))
+    store.upsert_employer(Employer(name="Small GmbH", ats="manual"))
+    html = render_tab("search", search_context(store, deps))
+    assert "Airbus" in html
+    assert "not polled" in html
 
 
 def test_interested_rows_have_priority_and_note_controls(store, deps):

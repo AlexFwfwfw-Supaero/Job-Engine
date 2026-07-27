@@ -11,6 +11,7 @@ from jobhunt.config import load_cities, load_comp, load_scoring
 from jobhunt.links import apply_results, check_jobs
 from jobhunt.match import evaluate
 from jobhunt.models import Employer, Job, Stage
+from jobhunt.poll import SOURCE_REGISTRY, poll_all
 from jobhunt.score import compensation, quality_of_life, total_score
 from jobhunt.snapshot import fetch_text, save_snapshot
 from jobhunt.sources.manual import posting_from_url
@@ -215,8 +216,20 @@ def create_app(deps: Deps) -> FastAPI:
 
     @app.post("/actions/search")
     def search(return_to: str = Form("search")) -> RedirectResponse:
-        # No-op until the ATS polling plan lands. The search tab says so
-        # rather than implying an empty market.
+        cfg = load_scoring(deps.config_dir / "scoring.yaml")
+        comp_cfg = load_comp(deps.config_dir / "comp.yaml")
+        cities = load_cities(deps.config_dir / "cities.yaml")
+
+        store = deps.store_factory()
+        client = deps.http_client()
+        try:
+            poll_all(store, SOURCE_REGISTRY, client, cfg, comp_cfg, cities,
+                     now=_now())
+        finally:
+            close = getattr(client, "close", None)
+            if close:
+                close()
+            store.close()
         return RedirectResponse(_safe_return(return_to), status_code=SEE_OTHER)
 
     return app

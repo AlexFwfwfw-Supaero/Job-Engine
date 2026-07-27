@@ -113,14 +113,16 @@ def overview_context(store: Store, deps: Deps) -> dict:
 
 def search_context(store: Store, deps: Deps) -> dict:
     jobs = store.list_jobs(stage=Stage.SPOTTED)
+    employers = store.list_employers()
+    pollable = [e for e in employers if e.poll_enabled]
     return {
         "tabs": TABS,
         "active": "search",
         "rows": _rows(store, jobs, deps),
-        # Flipped on when the ATS polling plan lands. Stated plainly rather
-        # than showing an empty result that implies the market was searched.
-        "search_available": False,
-        "employers": [e.name for e in store.list_employers()],
+        "search_available": bool(pollable),
+        "pollable": [e.name for e in pollable],
+        "unwatched_count": len(employers) - len(pollable),
+        "employers": [e.name for e in employers],
     }
 
 
