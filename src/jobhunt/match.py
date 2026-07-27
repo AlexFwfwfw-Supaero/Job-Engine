@@ -17,6 +17,7 @@ class MatchResult:
     relevant: bool
     role_fit: float
     matched_families: list[str] = field(default_factory=list)
+    modifiers: list[str] = field(default_factory=list)
     language_flags: list[str] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
 
@@ -88,6 +89,17 @@ def evaluate(
         key=lambda name: scores[name], reverse=True,
     )
     role_fit = max(scores.values()) if scores else 0.0
+
+    # Modifiers only ever adjust an existing match. Letting them score alone
+    # would rank an R&D role in any discipline above real GNSS work — a live
+    # search of one tenant for 'r&d' returned 182 jobs led by QA Engineer.
+    modifiers = [
+        keyword for keyword in cfg.role_modifiers.keywords
+        if _matches(keyword, title_l) or _matches(keyword, desc_l)
+    ]
+    if role_fit > 0 and modifiers:
+        role_fit += cfg.role_modifiers.weight
+
     role_fit = min(max(role_fit, 0.0), 1.0)
 
     language_flags = []
@@ -105,6 +117,7 @@ def evaluate(
         relevant=role_fit > 0.0,
         role_fit=role_fit,
         matched_families=matched,
+        modifiers=modifiers,
         language_flags=sorted(language_flags),
         reasons=reasons,
     )

@@ -38,6 +38,21 @@ poll_search_terms:
   - inertial
   - signal processing
   - orbit determination
+  - r&t
+  - research engineer
+  - études amont
+
+# R&D and R&T describe the *kind* of work, not its subject. These terms lift a
+# posting that already matched a role family below and do nothing to one that
+# did not, which is what keeps "Research Scientist, Metallurgy" at zero while
+# ranking "GNSS Research Engineer" above a plain GNSS role.
+# There is deliberately no standalone research role family: research only
+# counts here when it is research in radar, navigation or signal processing.
+role_modifiers:
+  weight: 0.20
+  keywords: ["r&d", "r&t", "research", "recherche", "innovation",
+             "advanced", "demonstrator", "prototype", "études amont",
+             "etudes amont", "phd", "doctoral"]
 
 role_families:
   - name: gnss
@@ -61,7 +76,8 @@ role_families:
   - name: radar
     weight: 0.8
     keywords: ["radar", "sar", "doppler", "waveform", "beamforming",
-               "electromagnetic", "rf front-end"]
+               "electromagnetic", "rf front-end", "rf", "antenna", "microwave",
+               "radio frequency", "electronic warfare", "phased array"]
   - name: adjacent
     weight: 0.5
     keywords: ["autonomous driving", "geodesy", "remote sensing",

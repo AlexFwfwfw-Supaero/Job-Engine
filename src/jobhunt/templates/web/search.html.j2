@@ -12,6 +12,11 @@
     <input type="hidden" name="return_to" value="search">
     <button type="submit">Update current jobs</button>
   </form>
+  <form method="post" action="/actions/rescore">
+    <input type="hidden" name="return_to" value="search">
+    <button type="submit" title="Recompute every score against config/scoring.yaml">
+      Rescore all</button>
+  </form>
 </div>
 {% if search_available %}
 <p class="sub">Searching polls {{ pollable|length }} employer(s):

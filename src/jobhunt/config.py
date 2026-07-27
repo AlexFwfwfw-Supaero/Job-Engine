@@ -18,6 +18,19 @@ class RoleFamily:
 
 
 @dataclass
+class RoleModifiers:
+    """Terms that adjust a role's fit without being a domain of their own.
+
+    R&D and R&T describe the kind of work, not the subject matter, so they
+    lift a posting that already matched a role family and do nothing to one
+    that did not.
+    """
+
+    weight: float = 0.0
+    keywords: list[str] = field(default_factory=list)
+
+
+@dataclass
 class ScoringConfig:
     weights: dict[str, float]
     qol_weights: dict[str, float]
@@ -30,6 +43,7 @@ class ScoringConfig:
     sunshine_range: list[int] = field(default_factory=lambda: [1300, 2900])
     rent_range: list[int] = field(default_factory=lambda: [400, 1800])
     poll_search_terms: list[str] = field(default_factory=list)
+    role_modifiers: RoleModifiers = field(default_factory=RoleModifiers)
 
 
 @dataclass
@@ -80,6 +94,12 @@ def load_scoring(path: Path) -> ScoringConfig:
         sunshine_range=raw.get("sunshine_range", [1300, 2900]),
         rent_range=raw.get("rent_range", [400, 1800]),
         poll_search_terms=raw.get("poll_search_terms", []),
+        role_modifiers=RoleModifiers(
+            weight=float(raw.get("role_modifiers", {}).get("weight", 0.0)),
+            keywords=[
+                k.lower() for k in raw.get("role_modifiers", {}).get("keywords", [])
+            ],
+        ),
     )
 
 

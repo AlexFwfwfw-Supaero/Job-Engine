@@ -1,6 +1,6 @@
 import pytest
 
-from jobhunt.config import RoleFamily, ScoringConfig
+from jobhunt.config import RoleFamily, RoleModifiers, ScoringConfig
 from jobhunt.match import evaluate
 
 
@@ -115,3 +115,46 @@ def test_hyphenated_and_multiword_keywords_still_match(cfg):
     cfg.role_families.append(RoleFamily("rf", 0.8, ["anti-jam", "sensor fusion"]))
     assert evaluate("Anti-Jam Antenna Engineer", "", "DE", cfg).role_fit > 0
     assert evaluate("Sensor Fusion Engineer", "", "DE", cfg).role_fit > 0
+
+
+def test_research_modifier_lifts_a_domain_match(cfg):
+    """A GNSS research role should outrank an otherwise identical production one.
+
+    R&D interest is a preference about the *kind* of work, not a separate
+    domain, so it adjusts an existing family match rather than standing alone.
+    """
+    cfg.role_modifiers = RoleModifiers(weight=0.15, keywords=["research", "r&t"])
+    plain = evaluate("GNSS Engineer", "", "DE", cfg)
+    research = evaluate("GNSS Research Engineer", "", "DE", cfg)
+    assert research.role_fit > plain.role_fit
+    assert research.modifiers == ["research"]
+
+
+def test_research_modifier_does_not_rescue_an_irrelevant_role(cfg):
+    """'R&D Engineer, cabin materials' must stay at zero.
+
+    Live check: searching Thales for 'r&d' returns 182 jobs led by QA Engineer
+    and Service Delivery Manager. A modifier that could score on its own would
+    rank those above real GNSS work.
+    """
+    cfg.role_modifiers = RoleModifiers(weight=0.15, keywords=["research", "r&d"])
+    assert evaluate("R&D Engineer - Cabin Materials", "", "DE", cfg).role_fit == 0.0
+    assert evaluate("Research Scientist, Metallurgy", "", "DE", cfg).role_fit == 0.0
+
+
+def test_research_modifier_never_pushes_role_fit_above_one(cfg):
+    cfg.role_modifiers = RoleModifiers(weight=0.9, keywords=["research"])
+    r = evaluate("GNSS Galileo Receiver Research Engineer",
+                 "gnss galileo receiver research", "DE", cfg)
+    assert r.role_fit == 1.0
+
+
+def test_no_modifier_configured_leaves_scores_untouched(cfg):
+    assert evaluate("GNSS Research Engineer", "", "DE", cfg).modifiers == []
+
+
+def test_r_and_t_is_matched_as_a_whole_token(cfg):
+    """'r&t' is short enough for boundary matching; it must not hit 'part'."""
+    cfg.role_modifiers = RoleModifiers(weight=0.15, keywords=["r&t"])
+    assert evaluate("Ingénieur R&T RF MEMS GNSS", "", "FR", cfg).modifiers == ["r&t"]
+    assert evaluate("GNSS Parts Engineer", "", "FR", cfg).modifiers == []

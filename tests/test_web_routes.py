@@ -212,3 +212,22 @@ def test_return_to_only_accepts_known_tabs(client, db_path):
         data={"stage": "applied", "return_to": "https://evil.example.com"},
     )
     assert response.headers["location"] == "/overview"
+
+
+def test_rescore_action_updates_scores_and_redirects(client, db_path):
+    from jobhunt.models import Employer, Job
+
+    store = Store(db_path)
+    store.initialize()
+    store.upsert_employer(Employer(name="Thales", country="FR", city="Toulouse"))
+    job_id = store.upsert_job(Job(
+        employer_id=1, title="Totally Unrelated Role", url="https://x/1",
+        city="Toulouse", country="FR", source="workday",
+        first_seen="2026-07-01", last_seen="2026-07-01",
+        role_fit=0.9, total_score=0.9,
+    ))
+    response = client.post("/actions/rescore", data={"return_to": "search"},
+                           follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/search"
+    assert store.get_job(job_id).role_fit == 0.0

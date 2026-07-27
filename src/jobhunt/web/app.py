@@ -12,6 +12,7 @@ from jobhunt.links import apply_results, check_jobs
 from jobhunt.match import evaluate
 from jobhunt.models import Employer, Job, Stage
 from jobhunt.poll import SOURCE_REGISTRY, poll_all
+from jobhunt.rescore import rescore_all
 from jobhunt.score import compensation, quality_of_life, total_score
 from jobhunt.snapshot import fetch_text, save_snapshot
 from jobhunt.sources.manual import posting_from_url
@@ -193,6 +194,18 @@ def create_app(deps: Deps) -> FastAPI:
         store = deps.store_factory()
         try:
             store.restore_job(job_id, ts=_now())
+        finally:
+            store.close()
+        return RedirectResponse(_safe_return(return_to), status_code=SEE_OTHER)
+
+    @app.post("/actions/rescore")
+    def rescore(return_to: str = Form("search")) -> RedirectResponse:
+        cfg = load_scoring(deps.config_dir / "scoring.yaml")
+        comp_cfg = load_comp(deps.config_dir / "comp.yaml")
+        cities = load_cities(deps.config_dir / "cities.yaml")
+        store = deps.store_factory()
+        try:
+            rescore_all(store, cfg, comp_cfg, cities)
         finally:
             store.close()
         return RedirectResponse(_safe_return(return_to), status_code=SEE_OTHER)

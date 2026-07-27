@@ -15,6 +15,7 @@ from jobhunt.links import apply_results, check_jobs
 from jobhunt.models import Stage
 from jobhunt.poll import SOURCE_REGISTRY, poll_all
 from jobhunt.report import build_context, render
+from jobhunt.rescore import rescore_all
 from jobhunt.snapshot import default_client
 from jobhunt.store import Store
 
@@ -348,6 +349,30 @@ def due() -> None:
     if not cycles:
         typer.echo("  none")
     store.close()
+
+
+@app.command()
+def rescore() -> None:
+    """Recompute every stored job's scores against the current config.
+
+    Run this after editing scoring.yaml: polling only writes scores for jobs
+    that still match, so a job that stops matching keeps a stale score.
+    """
+    cfg, comp_cfg, cities = _load_all()
+    store = _open_store()
+    try:
+        report = rescore_all(store, cfg, comp_cfg, cities)
+    finally:
+        store.close()
+
+    typer.echo(f"rescored {report.rescored} job(s)")
+    if report.no_longer_matching:
+        typer.echo(f"{len(report.no_longer_matching)} no longer match your role "
+                   "families and are now scored 0:")
+        for title in report.no_longer_matching[:10]:
+            typer.echo(f"  - {title}")
+        if len(report.no_longer_matching) > 10:
+            typer.echo(f"  ... and {len(report.no_longer_matching) - 10} more")
 
 
 @app.command()
