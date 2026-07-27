@@ -9,6 +9,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+# Optional on purpose: the tracker is fully usable without a model. Only the
+# enrich, insights and rank commands need this.
+ai = ["anthropic>=0.40"]
 
 [project.scripts]
 jobs = "jobhunt.cli:app"

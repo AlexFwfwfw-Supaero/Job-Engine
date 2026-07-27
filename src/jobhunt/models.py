@@ -76,6 +76,14 @@ class Job:
     priority: int = 0
     link_status: str = "unknown"
     last_checked: str | None = None
+    # Full posting text, fetched on demand. Empty for jobs never enriched.
+    description: str = ""
+    # The language model's own reading, kept beside the rule-based scores
+    # rather than folded into them: a model's confident wrong answer must
+    # never silently outrank a deterministic match.
+    llm_fit: float | None = None
+    llm_json: str = ""
+    llm_checked: str | None = None
     id: int | None = None
 
 

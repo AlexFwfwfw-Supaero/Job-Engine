@@ -10,13 +10,15 @@ import typer
 from jobhunt.config import (
     load_cities, load_comp, load_deadlines, load_employers, load_scoring,
 )
+from jobhunt import llm as llm_module
+from jobhunt.enrich import enrich_jobs
 from jobhunt.linkedin import build_links, locations_from_cities
 from jobhunt.links import apply_results, check_jobs
 from jobhunt.models import Stage
 from jobhunt.poll import SOURCE_REGISTRY, poll_all
 from jobhunt.report import build_context, render
 from jobhunt.rescore import rescore_all
-from jobhunt.snapshot import default_client
+from jobhunt.snapshot import default_client, fetch_text
 from jobhunt.store import Store
 
 app = typer.Typer(help="Track GNSS/PNT/radar job opportunities.")
@@ -349,6 +351,121 @@ def due() -> None:
     if not cycles:
         typer.echo("  none")
     store.close()
+
+
+PROFILE_FILES = ("positioning.md", "evidence.md")
+
+
+def _profile() -> str:
+    """The candidate description sent to the model.
+
+    Built from profile/, falling back to what config/scoring.yaml already
+    states about role families and languages, so the AI commands work before
+    the profile notes are written — just less precisely.
+    """
+    directory = Path(os.environ.get("JOBHUNT_PROFILE", "profile"))
+    parts = [
+        text for name in PROFILE_FILES
+        if (path := directory / name).exists()
+        and (text := path.read_text(encoding="utf-8").strip())
+    ]
+    if parts:
+        return "\n\n".join(parts)
+
+    cfg = load_scoring(_config_dir() / "scoring.yaml")
+    families = ", ".join(f.name.replace("_", " ") for f in cfg.role_families)
+    languages = ", ".join(cfg.known_languages)
+    typer.echo(f"note: {directory}/ is empty, using a profile derived from "
+               "scoring.yaml. Fill it in for sharper judgments.")
+    return (f"Engineering graduate targeting: {families}. "
+            f"Speaks: {languages}. Open to junior roles and funded PhDs.")
+
+
+def _llm():
+    """Build the model client, or explain exactly what is missing."""
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key:
+        typer.echo("ANTHROPIC_API_KEY is not set. Everything else works without "
+                   "it; only the AI commands need a key.")
+        raise typer.Exit(code=2)
+    from jobhunt.llm import AnthropicLLM
+
+    try:
+        return AnthropicLLM(key, model=os.environ.get("JOBHUNT_MODEL",
+                                                      llm_module.DEFAULT_MODEL))
+    except ImportError:
+        typer.echo("the anthropic package is not installed. "
+                   "Run: .venv/bin/pip install anthropic")
+        raise typer.Exit(code=2)
+
+
+@app.command()
+def enrich(
+    job_id: Optional[int] = typer.Option(None, "--job", help="One job only"),
+    stage: Optional[str] = typer.Option(None, "--stage"),
+    limit: int = typer.Option(20, "--limit", help="Cap the API calls per run"),
+    force: bool = typer.Option(False, "--force", help="Re-analyse already-read jobs"),
+) -> None:
+    """Read postings with the model: domain fit, seniority, language, angle."""
+    store = _open_store()
+    profile = _profile()
+    llm = _llm()
+    client = _http_client()
+    try:
+        if job_id is not None:
+            job = store.get_job(job_id)
+            jobs = [job] if job else []
+        else:
+            jobs = store.list_jobs(stage=_parse_stage(stage) if stage else None)
+        report = enrich_jobs(store, jobs, profile, llm, fetch_text, _now(),
+                             limit=limit, force=force, client=client)
+    finally:
+        close = getattr(client, "close", None)
+        if close:
+            close()
+        store.close()
+
+    typer.echo(f"analysed {report.analysed}, skipped {report.skipped} "
+               "(already read; use --force to redo)")
+    for failure in report.failed:
+        typer.echo(f"  failed: {failure}")
+
+
+@app.command("insights")
+def insights(job_id: Optional[int] = typer.Argument(None)) -> None:
+    """Show what the model concluded about a job, or about every read job."""
+    import json as _json
+
+    store = _open_store()
+    jobs = [store.get_job(job_id)] if job_id else store.list_jobs()
+    for job in jobs:
+        if job is None or not job.llm_json:
+            continue
+        v = _json.loads(job.llm_json)
+        typer.echo(f"[{job.id}] {job.title}")
+        typer.echo(f"  ai fit    {v['domain_fit']:.2f}  (rule-based {job.role_fit:.2f})")
+        typer.echo(f"  why       {v['reason']}")
+        typer.echo(f"  level     {v['seniority']} / {v['contract']}")
+        typer.echo(f"  german    {v['german_required']}")
+        typer.echo(f"  angle     {v['angle']}")
+    store.close()
+
+
+@app.command("rank")
+def rank_jobs() -> None:
+    """Ask the model to order your shortlist and say why."""
+    from jobhunt.llm import rank_prompt
+
+    store = _open_store()
+    jobs = store.list_jobs(stage=Stage.SHORTLISTED)
+    if not jobs:
+        typer.echo("nothing shortlisted yet")
+        store.close()
+        return
+    profile = _profile()
+    llm = _llm()
+    store.close()
+    typer.echo(llm.complete(rank_prompt(jobs, profile)))
 
 
 @app.command()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -41,6 +42,17 @@ class JobRow:
     employer_name: str
     comp_label: str
     stale_days: int | None = None
+    # The model's reading, decoded for the template. None when never analysed.
+    ai: dict | None = None
+
+
+def _ai(job: Job) -> dict | None:
+    if not job.llm_json:
+        return None
+    try:
+        return json.loads(job.llm_json)
+    except json.JSONDecodeError:
+        return None
 
 
 def _load_config(deps: Deps):
@@ -71,6 +83,7 @@ def _rows(store: Store, jobs: list[Job], deps: Deps) -> list[JobRow]:
             job=job,
             employer_name=employers.get(job.employer_id, "unknown"),
             comp_label=_comp_label(job, comp_cfg, cities, cfg),
+            ai=_ai(job),
         )
         for job in jobs
     ]
@@ -127,6 +140,7 @@ def search_context(store: Store, deps: Deps) -> dict:
     cfg, _comp_cfg, cities = _load_config(deps)
     return {
         "linkedin_groups": _linkedin_groups(cfg, cities),
+        "ai_available": deps.llm() is not None,
         "tabs": TABS,
         "active": "search",
         "rows": _rows(store, jobs, deps),
@@ -143,6 +157,7 @@ def interested_context(store: Store, deps: Deps) -> dict:
         "tabs": TABS,
         "active": "interested",
         "rows": _rows(store, jobs, deps),
+        "ai_available": deps.llm() is not None,
     }
 
 

@@ -231,3 +231,47 @@ def test_rescore_action_updates_scores_and_redirects(client, db_path):
     assert response.status_code == 303
     assert response.headers["location"] == "/search"
     assert store.get_job(job_id).role_fit == 0.0
+
+
+def test_analyse_without_an_api_key_explains_itself(client, db_path):
+    """The AI layer is optional; its absence must read as a message, not a crash."""
+    from jobhunt.models import Employer, Job
+
+    store = Store(db_path)
+    store.initialize()
+    store.upsert_employer(Employer(name="Thales", country="FR"))
+    job_id = store.upsert_job(Job(employer_id=1, title="GNSS Engineer",
+                                  url="https://x/1"))
+    response = client.post(f"/jobs/{job_id}/analyse", data={"return_to": "search"})
+    assert response.status_code == 503
+    assert "ANTHROPIC_API_KEY" in response.json()["detail"]
+
+
+def test_analyse_stores_the_verdict_when_a_model_is_available(deps, db_path):
+    import json as _json
+
+    from fastapi.testclient import TestClient
+
+    from jobhunt.models import Employer, Job
+    from jobhunt.web.app import create_app
+
+    store = Store(db_path)
+    store.initialize()
+    store.upsert_employer(Employer(name="Thales", country="FR"))
+    job_id = store.upsert_job(Job(employer_id=1, title="GNSS Engineer",
+                                  url="https://x/1", role_fit=0.5))
+
+    class FakeLLM:
+        def complete(self, prompt):
+            return _json.dumps({"relevant": True, "domain_fit": 0.9,
+                                "reason": "receiver work", "angle": "thesis"})
+
+    deps.llm = lambda: FakeLLM()
+    deps.profile = lambda: "GNSS graduate"
+    client = TestClient(create_app(deps), follow_redirects=False)
+    response = client.post(f"/jobs/{job_id}/analyse", data={"return_to": "search"})
+
+    assert response.status_code == 303
+    job = store.get_job(job_id)
+    assert job.llm_fit == 0.9
+    assert job.role_fit == 0.5

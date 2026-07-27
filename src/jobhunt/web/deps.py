@@ -22,6 +22,10 @@ class Deps:
     config_dir: Path
     today: Callable[[], date]
     http_client: Callable[[], object]
+    # Returns None when no API key is configured. The AI features are the only
+    # thing that degrades; every other page works exactly the same.
+    llm: Callable[[], object | None] = lambda: None
+    profile: Callable[[], str] = lambda: ""
 
     @classmethod
     def from_env(cls) -> "Deps":
@@ -30,9 +34,29 @@ class Deps:
             store.initialize()
             return store
 
+        def make_llm():
+            key = os.environ.get("ANTHROPIC_API_KEY", "")
+            if not key:
+                return None
+            from jobhunt.llm import DEFAULT_MODEL, AnthropicLLM
+
+            try:
+                return AnthropicLLM(
+                    key, model=os.environ.get("JOBHUNT_MODEL", DEFAULT_MODEL)
+                )
+            except ImportError:
+                return None
+
+        def read_profile() -> str:
+            from jobhunt.cli import _profile
+
+            return _profile()
+
         return cls(
             store_factory=make_store,
             config_dir=Path(os.environ.get("JOBHUNT_CONFIG", "config")),
             today=date.today,
             http_client=default_client,
+            llm=make_llm,
+            profile=read_profile,
         )

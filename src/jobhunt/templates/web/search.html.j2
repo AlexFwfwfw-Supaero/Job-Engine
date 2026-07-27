@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% import "_row.html.j2" as r %}
+{% import "_row.html.j2" as r with context %}
 {% block content %}
 <h1>Job Search</h1>
 
@@ -76,7 +76,7 @@ anything worth keeping with the form below.</p>
   <tr>
     <td>{{ r.identity(row) }}</td>
     <td>{{ row.comp_label }}</td>
-    <td>{{ r.scorecell(row.job) }}</td>
+    <td>{{ r.scorecell(row.job) }}{{ r.ai(row, 'search') }}</td>
     <td>{{ r.triage(row.job, 'search') }}</td>
   </tr>
   {% endfor %}

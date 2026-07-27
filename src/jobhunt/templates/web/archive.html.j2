@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% import "_row.html.j2" as r %}
+{% import "_row.html.j2" as r with context %}
 {% block content %}
 <h1>Archive <span class="sub">({{ rows|length }})</span></h1>
 <p class="sub">Recurring reasons here are candidates for

@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% import "_row.html.j2" as r %}
+{% import "_row.html.j2" as r with context %}
 {% block content %}
 <h1>Applied</h1>
 {% for stage, rows in groups.items() %}

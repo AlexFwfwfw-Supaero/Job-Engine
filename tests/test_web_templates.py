@@ -148,3 +148,40 @@ def test_search_tab_lists_linkedin_searches_grouped_by_city(store, deps, config_
 def test_search_tab_explains_why_linkedin_is_not_polled(store, deps):
     html = render_tab("search", search_context(store, deps))
     assert "forbid scraping" in html
+
+
+def test_ai_button_is_hidden_when_no_model_is_configured(store, deps):
+    html = render_tab("search", search_context(store, deps))
+    assert "Read with AI" not in html
+
+
+def test_ai_button_appears_when_a_model_is_configured(store, deps):
+    from jobhunt.models import Employer, Job
+
+    store.upsert_employer(Employer(name="Thales", country="FR"))
+    store.upsert_job(Job(employer_id=1, title="GNSS Engineer", url="https://x/1"))
+    deps.llm = lambda: object()
+    html = render_tab("search", search_context(store, deps))
+    assert "Read with AI" in html
+
+
+def test_ai_verdict_is_shown_beside_the_rule_based_score(store, deps):
+    import json as _json
+
+    from jobhunt.models import Employer, Job
+
+    store.upsert_employer(Employer(name="Thales", country="FR"))
+    job_id = store.upsert_job(Job(employer_id=1, title="GNSS Engineer",
+                                  url="https://x/1", role_fit=0.5,
+                                  total_score=0.5))
+    store.save_enrichment(job_id, "text", 0.9, _json.dumps({
+        "domain_fit": 0.9, "reason": "Galileo receiver work",
+        "seniority": "junior", "contract": "permanent",
+        "german_required": "not needed", "angle": "Lead with the thesis.",
+    }), "2026-07-27T00:00:00Z")
+
+    html = render_tab("search", search_context(store, deps))
+    assert "AI fit 0.90" in html
+    assert "Galileo receiver work" in html
+    assert "Lead with the thesis." in html
+    assert "0.50" in html

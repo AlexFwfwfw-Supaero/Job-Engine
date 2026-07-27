@@ -8,6 +8,7 @@ from fastapi import FastAPI, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from jobhunt.config import load_cities, load_comp, load_scoring
+from jobhunt.enrich import enrich_jobs
 from jobhunt.links import apply_results, check_jobs
 from jobhunt.match import evaluate
 from jobhunt.models import Employer, Job, Stage
@@ -195,6 +196,34 @@ def create_app(deps: Deps) -> FastAPI:
         try:
             store.restore_job(job_id, ts=_now())
         finally:
+            store.close()
+        return RedirectResponse(_safe_return(return_to), status_code=SEE_OTHER)
+
+    @app.post("/jobs/{job_id}/analyse")
+    def analyse_job(
+        job_id: int, return_to: str = Form("search")
+    ) -> RedirectResponse:
+        """Have the model read one posting. Unavailable without a key, and
+        that must be a plain message rather than a stack trace."""
+        llm = deps.llm()
+        if llm is None:
+            raise HTTPException(
+                status_code=503,
+                detail="ANTHROPIC_API_KEY is not set. Everything else in the "
+                       "tracker works without it.",
+            )
+        store = deps.store_factory()
+        client = deps.http_client()
+        try:
+            job = store.get_job(job_id)
+            if job is None:
+                raise HTTPException(status_code=404, detail=f"no job {job_id}")
+            enrich_jobs(store, [job], deps.profile(), llm, fetch_text, _now(),
+                        force=True, client=client)
+        finally:
+            close = getattr(client, "close", None)
+            if close:
+                close()
             store.close()
         return RedirectResponse(_safe_return(return_to), status_code=SEE_OTHER)
 

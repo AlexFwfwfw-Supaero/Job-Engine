@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% import "_row.html.j2" as r %}
+{% import "_row.html.j2" as r with context %}
 {% block content %}
 <h1>Interested <span class="sub">({{ rows|length }})</span></h1>
 {% if rows %}
@@ -10,7 +10,7 @@
   <tr>
     <td>{{ r.identity(row) }}</td>
     <td>{{ row.comp_label }}</td>
-    <td>{{ r.scorecell(row.job) }}</td>
+    <td>{{ r.scorecell(row.job) }}{{ r.ai(row, 'interested') }}</td>
     <td>{{ r.priority_and_note(row.job, 'interested') }}</td>
     <td>{{ r.triage(row.job, 'interested') }}</td>
   </tr>

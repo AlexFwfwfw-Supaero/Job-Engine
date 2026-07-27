@@ -53,3 +53,21 @@
     <button type="submit">Save note</button>
   </form>
 {% endmacro %}
+
+{% macro ai(row, return_to) %}
+  {% if row.ai %}
+  <div class="sub">
+    <strong>AI fit {{ '%.2f'|format(row.ai.domain_fit) }}</strong>
+    · {{ row.ai.seniority }} / {{ row.ai.contract }}
+    · German {{ row.ai.german_required }}
+  </div>
+  <div class="sub">{{ row.ai.reason }}</div>
+  {% if row.ai.angle %}<div class="sub"><em>Angle:</em> {{ row.ai.angle }}</div>{% endif %}
+  {% endif %}
+  {% if ai_available %}
+  <form class="inline" method="post" action="/jobs/{{ row.job.id }}/analyse">
+    <input type="hidden" name="return_to" value="{{ return_to }}">
+    <button type="submit">{{ 'Re-read' if row.ai else 'Read with AI' }}</button>
+  </form>
+  {% endif %}
+{% endmacro %}

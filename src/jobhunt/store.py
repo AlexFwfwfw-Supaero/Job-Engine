@@ -70,6 +70,7 @@ CREATE INDEX IF NOT EXISTS idx_jobs_stage ON jobs(stage, dismissed);
 _PRESERVED_ON_REUPSERT = (
     "stage", "dismissed", "dismiss_reason", "base_cv", "angle",
     "applied_on", "first_seen", "notes", "priority",
+    "description", "llm_fit", "llm_json", "llm_checked",
 )
 
 # Columns added after the first release. Applied to existing databases by
@@ -79,6 +80,10 @@ _ADDED_COLUMNS = (
     ("priority", "INTEGER DEFAULT 0"),
     ("link_status", "TEXT DEFAULT 'unknown'"),
     ("last_checked", "TEXT"),
+    ("description", "TEXT DEFAULT ''"),
+    ("llm_fit", "REAL"),
+    ("llm_json", "TEXT DEFAULT ''"),
+    ("llm_checked", "TEXT"),
 )
 
 VALID_LINK_STATUS = frozenset({"live", "dead", "unknown"})
@@ -188,15 +193,17 @@ class Store:
                 (employer_id, title, url, city, country, source, snapshot_path,
                  first_seen, last_seen, stage, dismissed, dismiss_reason,
                  role_fit, comp_score, qol_score, total_score, salary_stated,
-                 level, language_flags, tags, base_cv, angle, applied_on)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 level, language_flags, tags, base_cv, angle, applied_on,
+                 description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?)
             """,
             (j.employer_id, j.title, j.url, j.city, j.country, j.source,
              j.snapshot_path, j.first_seen, j.last_seen, j.stage.value,
              int(j.dismissed), j.dismiss_reason, j.role_fit, j.comp_score,
              j.qol_score, j.total_score, j.salary_stated, j.level,
              json.dumps(j.language_flags), json.dumps(j.tags), j.base_cv,
-             j.angle, j.applied_on),
+             j.angle, j.applied_on, j.description),
         )
         self.conn.commit()
         return int(cur.lastrowid)
@@ -233,6 +240,22 @@ class Store:
             params,
         ).fetchall()
         return [_row_to_job(r) for r in rows]
+
+    def save_enrichment(
+        self, job_id: int, description: str, llm_fit: float | None,
+        llm_json: str, ts: str,
+    ) -> None:
+        """Store the fetched posting text and the model's reading of it.
+
+        Kept separate from upsert_job so re-polling never clears an analysis
+        that cost an API call, and so a scoring change never rewrites it.
+        """
+        self.conn.execute(
+            "UPDATE jobs SET description=?, llm_fit=?, llm_json=?, llm_checked=? "
+            "WHERE id = ?",
+            (description, llm_fit, llm_json, ts, job_id),
+        )
+        self.conn.commit()
 
     def set_stage(self, job_id: int, stage: Stage, ts: str) -> None:
         self.conn.execute(
@@ -343,4 +366,6 @@ def _row_to_job(row: sqlite3.Row) -> Job:
         tags=json.loads(row["tags"]), base_cv=row["base_cv"], angle=row["angle"],
         applied_on=row["applied_on"], notes=row["notes"], priority=row["priority"],
         link_status=row["link_status"], last_checked=row["last_checked"],
+        description=row["description"], llm_fit=row["llm_fit"],
+        llm_json=row["llm_json"], llm_checked=row["llm_checked"],
     )
