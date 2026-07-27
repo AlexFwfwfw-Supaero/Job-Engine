@@ -44,22 +44,9 @@ def parse_jobs(payload: dict, employer: Employer) -> list[RawPosting]:
     return postings
 
 
-def fetch(
-    employer: Employer,
-    client,
-    page_size: int = DEFAULT_PAGE_SIZE,
-    max_pages: int = DEFAULT_MAX_PAGES,
-    search_text: str = "",
+def _fetch_term(
+    employer: Employer, client, term: str, page_size: int, max_pages: int
 ) -> list[RawPosting]:
-    """Page through a Workday tenant's public job feed.
-
-    Stops at the first short page, so a tenant with few jobs costs one request.
-    Pulls broadly and leaves relevance to the matcher — Workday's own search
-    ranks 'Manager Commercial and Contracts' highly for 'navigation'.
-    """
-    if not employer.ats_endpoint:
-        return []
-
     found: list[RawPosting] = []
     for page in range(max_pages):
         response = client.post(
@@ -68,13 +55,48 @@ def fetch(
                 "appliedFacets": {},
                 "limit": page_size,
                 "offset": page * page_size,
-                "searchText": search_text,
+                "searchText": term,
             },
         )
         response.raise_for_status()
-        payload = response.json()
-        batch = parse_jobs(payload, employer)
+        batch = parse_jobs(response.json(), employer)
         found.extend(batch)
         if len(batch) < page_size:
             break
     return found
+
+
+def fetch(
+    employer: Employer,
+    client,
+    page_size: int = DEFAULT_PAGE_SIZE,
+    max_pages: int = DEFAULT_MAX_PAGES,
+    search_terms: list[str] | None = None,
+) -> list[RawPosting]:
+    """Collect postings from a Workday tenant, one query per search term.
+
+    A large tenant holds thousands of jobs across every discipline, so pulling
+    the feed broadly and filtering locally would need hundreds of requests and
+    still miss the relevant roles — a live poll of the first 60 Airbus jobs
+    returned cabin installers and no navigation roles at all.
+
+    Querying per term lets the tenant narrow server-side on our vocabulary;
+    the matcher then supplies precision, because Workday's own ranking puts
+    'Manager Commercial and Contracts' near the top for 'navigation'.
+
+    A term that fails is skipped rather than losing the whole sweep.
+    """
+    if not employer.ats_endpoint:
+        return []
+
+    terms = list(search_terms) if search_terms else [""]
+    by_url: dict[str, RawPosting] = {}
+    for term in terms:
+        try:
+            for posting in _fetch_term(
+                employer, client, term, page_size, max_pages
+            ):
+                by_url.setdefault(posting.url, posting)
+        except Exception:
+            continue
+    return list(by_url.values())

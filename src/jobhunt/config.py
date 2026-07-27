@@ -29,6 +29,7 @@ class ScoringConfig:
     staleness: dict[str, list[int]] = field(default_factory=dict)
     sunshine_range: list[int] = field(default_factory=lambda: [1300, 2900])
     rent_range: list[int] = field(default_factory=lambda: [400, 1800])
+    poll_search_terms: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -78,6 +79,7 @@ def load_scoring(path: Path) -> ScoringConfig:
         staleness=raw.get("staleness", {}),
         sunshine_range=raw.get("sunshine_range", [1300, 2900]),
         rent_range=raw.get("rent_range", [400, 1800]),
+        poll_search_terms=raw.get("poll_search_terms", []),
     )
 
 

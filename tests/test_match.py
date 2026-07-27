@@ -79,3 +79,39 @@ def test_known_language_is_not_flagged(cfg):
 def test_matching_is_case_insensitive(cfg):
     r = evaluate("GALILEO SIGNAL ENGINEER", "", "DE", cfg)
     assert r.role_fit > 0
+
+
+def test_short_keywords_do_not_match_inside_longer_words(cfg):
+    """Regression: 'ins' (inertial nav) matched Installer, Inspecteur, Insurance.
+
+    Found by polling Airbus live — cabin installers outranked GNSS roles.
+    """
+    cfg.role_families.append(RoleFamily("sensor_fusion", 0.9, ["ins", "imu", "sar"]))
+    for title in ["Cabin Installer", "Systems Installer (A320)",
+                  "Inspecteur Qualité", "Insurance Analyst", "Sarah's Team Lead"]:
+        assert evaluate(title, "", "DE", cfg).role_fit == 0.0, title
+
+
+def test_short_keywords_still_match_as_whole_words(cfg):
+    cfg.role_families.append(RoleFamily("sensor_fusion", 0.9, ["ins", "imu"]))
+    assert evaluate("GNSS/INS Integration Engineer", "", "DE", cfg).role_fit > 0
+    assert evaluate("Engineer, IMU calibration", "", "DE", cfg).role_fit > 0
+
+
+def test_multiword_keywords_match_plurals(cfg):
+    """Regression: '\\bnavigation system\\b' missed 'Navigation Systems Engineer'.
+
+    Strict boundaries on long keywords silently dropped the single most
+    relevant live posting. Boundaries are only needed for short abbreviations.
+    """
+    cfg.role_families.append(
+        RoleFamily("nav", 0.9, ["navigation system", "flight dynamics"])
+    )
+    assert evaluate("Navigation Systems Engineer", "", "DE", cfg).role_fit > 0
+    assert evaluate("Senior Flight Dynamics Engineer", "", "DE", cfg).role_fit > 0
+
+
+def test_hyphenated_and_multiword_keywords_still_match(cfg):
+    cfg.role_families.append(RoleFamily("rf", 0.8, ["anti-jam", "sensor fusion"]))
+    assert evaluate("Anti-Jam Antenna Engineer", "", "DE", cfg).role_fit > 0
+    assert evaluate("Sensor Fusion Engineer", "", "DE", cfg).role_fit > 0

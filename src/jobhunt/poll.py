@@ -18,6 +18,19 @@ SOURCE_REGISTRY: dict[str, Callable] = {
 }
 
 
+def source_kwargs(ats: str, cfg: ScoringConfig, common: dict) -> dict:
+    """Arguments for one source's fetch().
+
+    Sources take different parameters — Workday searches server-side on our
+    terms, EURAXESS ignores keyword parameters entirely and filters by facet —
+    so passing one kwargs blob to every source would raise TypeError.
+    """
+    kwargs = dict(common)
+    if ats == workday.NAME:
+        kwargs["search_terms"] = list(cfg.poll_search_terms)
+    return kwargs
+
+
 @dataclass
 class PollReport:
     employer: str
@@ -131,7 +144,7 @@ def poll_all(
     cities: dict[str, City],
     now: str,
     only: str | None = None,
-    **source_kwargs,
+    **common_kwargs,
 ) -> list[PollReport]:
     """Poll every employer with polling enabled.
 
@@ -155,6 +168,6 @@ def poll_all(
 
         reports.append(poll_employer(
             store, employer, source, client, cfg, comp_cfg, cities, now,
-            **source_kwargs,
+            **source_kwargs(employer.ats, cfg, common_kwargs),
         ))
     return reports

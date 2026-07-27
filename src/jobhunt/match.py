@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 from jobhunt.config import RoleFamily, ScoringConfig
 
@@ -19,12 +21,39 @@ class MatchResult:
     reasons: list[str] = field(default_factory=list)
 
 
+# Keywords this short are domain abbreviations, and matching them as
+# substrings produces nonsense: 'ins' (inertial navigation) hits Installer,
+# Inspecteur and Insurance; 'sar' hits Sarah. Anything longer is distinctive
+# enough that plain substring matching is safe — and substring matching is
+# what makes 'navigation system' match 'Navigation Systems Engineer', which
+# strict boundaries silently dropped.
+# Both halves of this rule come from live poll results, not theory.
+BOUNDARY_MAX_LENGTH = 4
+
+
+@lru_cache(maxsize=1024)
+def _keyword_pattern(keyword: str) -> re.Pattern[str] | None:
+    if len(keyword) > BOUNDARY_MAX_LENGTH:
+        return None
+    escaped = re.escape(keyword)
+    left = r"\b" if keyword[:1].isalnum() else ""
+    right = r"\b" if keyword[-1:].isalnum() else ""
+    return re.compile(f"{left}{escaped}{right}")
+
+
+def _matches(keyword: str, haystack: str) -> bool:
+    pattern = _keyword_pattern(keyword)
+    if pattern is None:
+        return keyword in haystack
+    return bool(pattern.search(haystack))
+
+
 def _family_score(family: RoleFamily, title: str, description: str) -> float:
     hits = 0.0
     for keyword in family.keywords:
-        if keyword in title:
+        if _matches(keyword, title):
             hits += TITLE_WEIGHT
-        elif keyword in description:
+        elif _matches(keyword, description):
             hits += DESCRIPTION_WEIGHT
     if hits == 0:
         return 0.0
@@ -47,7 +76,7 @@ def evaluate(
         )
 
     for negative in cfg.negative_keywords:
-        if negative in title_l:
+        if _matches(negative, title_l):
             return MatchResult(
                 relevant=False, role_fit=0.0,
                 reasons=[f"negative keyword in title: {negative}"],
@@ -66,7 +95,7 @@ def evaluate(
     for lang, keywords in cfg.language_keywords.items():
         if lang.lower() in known:
             continue
-        if any(k in title_l or k in desc_l for k in keywords):
+        if any(_matches(k, title_l) or _matches(k, desc_l) for k in keywords):
             language_flags.append(lang)
 
     if role_fit == 0.0:

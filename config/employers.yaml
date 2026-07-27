@@ -41,6 +41,16 @@ employers:
   - {name: Leonardo, country: IT, city: Rome, ats: manual, tags: [radar, defense],
      careers_url: "https://www.leonardo.com/en/careers"}
 
+  # --- aggregators ---
+  - {name: EURAXESS, country: "", city: "", ats: euraxess, poll_enabled: true,
+     tags: [phd, research, aggregator],
+     careers_url: "https://euraxess.ec.europa.eu/jobs/search",
+     notes: "CONFIRMED 2026-07-26 — EU research jobs portal, the main channel for
+             directly-advertised PhD positions. Its ?keys= keyword parameter is
+             ignored (GNSS and nonsense return identical results), so polling
+             filters by the Engineering research-field facet and relevance is
+             decided locally by the matcher."}
+
   # --- agencies and research ---
   - {name: ESA, country: NL, city: Noordwijk, ats: successfactors, tags: [space, agency, egt],
      careers_url: "https://jobs.esa.int/",

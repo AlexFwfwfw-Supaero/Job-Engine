@@ -122,3 +122,41 @@ def test_fetch_respects_max_pages(employer):
 def test_fetch_without_an_endpoint_returns_nothing(employer):
     employer.ats_endpoint = ""
     assert fetch(employer, FakeClient([]), page_size=5, max_pages=1) == []
+
+
+def test_fetch_queries_once_per_search_term(employer):
+    one = {"jobPostings": [{"title": "GNSS Engineer", "externalPath": "/job/X/a"}]}
+    client = FakeClient([one, one, one])
+    fetch(employer, client, page_size=20, max_pages=1,
+          search_terms=["gnss", "radar", "kalman"])
+    assert [body["searchText"] for _, body in client.calls] == [
+        "gnss", "radar", "kalman"]
+
+
+def test_fetch_unions_search_terms_without_duplicates(employer):
+    same = {"jobPostings": [{"title": "GNSS Engineer", "externalPath": "/job/X/a"}]}
+    other = {"jobPostings": [{"title": "Radar Engineer", "externalPath": "/job/X/b"}]}
+    client = FakeClient([same, other, same])
+    postings = fetch(employer, client, page_size=20, max_pages=1,
+                     search_terms=["gnss", "radar", "galileo"])
+    assert sorted(p.title for p in postings) == ["GNSS Engineer", "Radar Engineer"]
+
+
+def test_fetch_with_no_terms_falls_back_to_one_broad_query(employer, payload):
+    client = FakeClient([payload])
+    fetch(employer, client, page_size=5, max_pages=1, search_terms=[])
+    assert [body["searchText"] for _, body in client.calls] == [""]
+
+
+def test_a_failing_term_does_not_lose_the_others(employer):
+    class FlakyClient(FakeClient):
+        def post(self, url, json=None, **kwargs):
+            self.calls.append((url, json))
+            if json["searchText"] == "radar":
+                raise RuntimeError("upstream hiccup")
+            return FakeResponse({"jobPostings": [
+                {"title": "GNSS Engineer", "externalPath": "/job/X/a"}]})
+
+    postings = fetch(employer, FlakyClient([]), page_size=20, max_pages=1,
+                     search_terms=["gnss", "radar", "kalman"])
+    assert [p.title for p in postings] == ["GNSS Engineer"]
