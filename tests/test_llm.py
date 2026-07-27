@@ -287,3 +287,62 @@ def test_prompt_tells_the_model_not_to_refuse_on_a_sparse_profile():
     prompt = build_prompt(job(), "posting body", "Target domains: gnss.")
     assert "Never refuse" in prompt
     assert "do not depend" in prompt
+
+
+# --- advising across the whole set -------------------------------------
+
+def advisable(**kw):
+    from jobhunt.models import Job
+    base = dict(employer_id=1, title="GNSS Engineer", url="https://x/1",
+                city="Toulouse", country="FR", total_score=0.6)
+    base.update(kw)
+    return Job(**base)
+
+
+def test_advise_prompt_includes_the_scores_and_the_ai_reading():
+    from jobhunt.llm import advise_prompt
+
+    jobs = [advisable(id=3, title="PhD Navigation Payloads", total_score=0.85,
+                      llm_fit=0.95,
+                      llm_json='{"reason": "exact domain match", '
+                               '"seniority": "phd", "contract": "phd", '
+                               '"german_required": "helpful"}')]
+    prompt = advise_prompt(jobs, "Target domains: gnss.", "")
+    assert "PhD Navigation Payloads" in prompt
+    assert "0.85" in prompt and "0.95" in prompt
+    assert "exact domain match" in prompt
+    assert "helpful" in prompt
+
+
+def test_advise_prompt_carries_your_own_notes_and_priority():
+    """Your notes are the strongest preference signal in the database."""
+    from jobhunt.llm import advise_prompt
+
+    jobs = [advisable(id=7, notes="met the team at a conference", priority=5)]
+    prompt = advise_prompt(jobs, "profile", "")
+    assert "met the team at a conference" in prompt
+    assert "5" in prompt
+
+
+def test_advise_prompt_includes_city_preferences_when_given():
+    from jobhunt.llm import advise_prompt
+
+    prompt = advise_prompt([advisable(id=1)], "profile",
+                           "Toulouse: sunny, cheap rent")
+    assert "Toulouse: sunny, cheap rent" in prompt
+
+
+def test_advise_prompt_asks_for_themes_not_just_a_list():
+    from jobhunt.llm import advise_prompt
+
+    prompt = advise_prompt([advisable(id=1)], "profile", "")
+    assert "pattern" in prompt.lower() or "theme" in prompt.lower()
+
+
+def test_advise_prompt_marks_jobs_the_model_has_not_read():
+    """Unread jobs must be visibly unread, or the advice implies a judgment
+    that was never made."""
+    from jobhunt.llm import advise_prompt
+
+    prompt = advise_prompt([advisable(id=1, llm_fit=None)], "profile", "")
+    assert "not read" in prompt.lower()

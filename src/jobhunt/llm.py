@@ -117,6 +117,63 @@ Reply with a single JSON object and nothing else:
   "angle": "one sentence on what this candidate should lead with"}}"""
 
 
+def _digest_line(job: Job) -> str:
+    """One line per job, carrying everything the advisor should weigh."""
+    parts = [f"[{job.id}] {job.title}", f"{job.city} {job.country}".strip(),
+             f"score {job.total_score:.2f}"]
+    if job.priority:
+        parts.append(f"your priority {job.priority}")
+    if job.llm_fit is None:
+        parts.append("not read by the model yet")
+    else:
+        parts.append(f"ai fit {job.llm_fit:.2f}")
+        try:
+            v = json.loads(job.llm_json or "{}")
+        except json.JSONDecodeError:
+            v = {}
+        for key in ("seniority", "contract", "german_required"):
+            if v.get(key) and v[key] != "unknown":
+                parts.append(f"{key.replace('_', ' ')} {v[key]}")
+        if v.get("reason"):
+            parts.append(v["reason"])
+    if job.notes:
+        parts.append(f"your note: {job.notes}")
+    return " | ".join(parts)
+
+
+def advise_prompt(jobs: list[Job], profile: str, places: str = "") -> str:
+    """Ask for a read across the whole set, not a score per job.
+
+    Per-posting analysis already exists; what a person cannot do quickly is
+    look at a hundred rows at once and say what the pattern is and where the
+    effort should go.
+    """
+    listing = "\n".join(_digest_line(job) for job in jobs)
+    location_note = f"\n\nPLACES\n{places}" if places else ""
+    return f"""You are advising one candidate on where to spend their applications.
+
+CANDIDATE
+{profile}{location_note}
+
+JOBS
+{listing}
+
+Give, in plain text:
+
+1. The five to eight jobs worth applying to first, strongest first, each with
+   one concrete sentence on why it beats the alternatives. Reference each by
+   its [id].
+2. The patterns you see across the whole set — which employers, cities,
+   domains or role types keep producing good matches, and which keep
+   producing near-misses and why.
+3. Anything the candidate appears to be missing or over-weighting, including
+   jobs ranked high by score that you would skip, and why.
+
+Jobs marked "not read by the model yet" have not been analysed; say so rather
+than implying a judgment. Be direct about weak options. Do not invent jobs or
+details that are not listed above."""
+
+
 def rank_prompt(jobs: list[Job], profile: str) -> str:
     lines = "\n".join(
         f"[{j.id}] {j.title} — {j.city} {j.country}"

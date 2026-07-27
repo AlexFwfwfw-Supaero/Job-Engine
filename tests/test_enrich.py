@@ -132,3 +132,61 @@ def test_enrich_respects_a_limit(store):
                          now="t", limit=2)
     assert llm.calls == 2
     assert report.analysed == 2
+
+
+def test_enrich_runs_jobs_concurrently(store):
+    """Each posting costs ~12s of headless model startup and generation, and
+    they are independent. Serial execution wasted almost all of it."""
+    import threading
+    import time
+
+    for i in range(4):
+        add(store, url=f"https://x/{i}")
+
+    active, peak = [0], [0]
+    lock = threading.Lock()
+
+    class SlowLLM:
+        def complete(self, prompt):
+            with lock:
+                active[0] += 1
+                peak[0] = max(peak[0], active[0])
+            time.sleep(0.2)
+            with lock:
+                active[0] -= 1
+            return VERDICT
+
+    started = time.time()
+    report = enrich_jobs(store, store.list_jobs(), PROFILE, SlowLLM(),
+                         FakeFetcher(), now="t", workers=4)
+    assert report.analysed == 4
+    assert peak[0] > 1, "calls did not overlap"
+    assert time.time() - started < 0.7, "ran serially"
+
+
+def test_enrich_writes_results_from_a_single_thread(store):
+    """SQLite connections are not shared across threads; only the fetch and
+    the model call are parallel."""
+    import threading
+
+    for i in range(3):
+        add(store, url=f"https://x/{i}")
+    writer_threads = set()
+    original = store.save_enrichment
+
+    def tracking(*args, **kwargs):
+        writer_threads.add(threading.get_ident())
+        return original(*args, **kwargs)
+
+    store.save_enrichment = tracking
+    enrich_jobs(store, store.list_jobs(), PROFILE, FakeLLM(), FakeFetcher(),
+                now="t", workers=3)
+    assert writer_threads == {threading.get_ident()}
+
+
+def test_enrich_still_respects_limit_when_parallel(store):
+    for i in range(6):
+        add(store, url=f"https://x/{i}")
+    report = enrich_jobs(store, store.list_jobs(), PROFILE, FakeLLM(),
+                         FakeFetcher(), now="t", limit=2, workers=4)
+    assert report.analysed == 2

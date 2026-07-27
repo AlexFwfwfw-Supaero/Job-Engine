@@ -83,9 +83,9 @@ read it, answering what a keyword list cannot: whether it is really navigation
 work, whether "junior" is actually junior, whether German is required or merely
 welcome, and what to lead with.
 
-    jobs enrich --stage shortlisted --limit 20
-    jobs insights 43
-    jobs rank
+    jobs enrich --stage shortlisted --limit 20   # ~11s per posting, 4 at a time
+    jobs insights 43                            # what it concluded about one job
+    jobs advise                                 # read across the whole set
 
 Two backends, tried in this order:
 

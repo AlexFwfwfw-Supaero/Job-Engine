@@ -436,6 +436,7 @@ def enrich(
     stage: Optional[str] = typer.Option(None, "--stage"),
     limit: int = typer.Option(20, "--limit", help="Cap the API calls per run"),
     force: bool = typer.Option(False, "--force", help="Re-analyse already-read jobs"),
+    workers: int = typer.Option(4, "--workers", help="Postings read in parallel"),
 ) -> None:
     """Read postings with the model: domain fit, seniority, language, angle."""
     store = _open_store()
@@ -449,7 +450,8 @@ def enrich(
         else:
             jobs = store.list_jobs(stage=_parse_stage(stage) if stage else None)
         report = enrich_jobs(store, jobs, profile, llm, fetch_posting_text, _now(),
-                             limit=limit, force=force, client=client)
+                             limit=limit, force=force, client=client,
+                             workers=workers)
     finally:
         close = getattr(client, "close", None)
         if close:
@@ -482,21 +484,46 @@ def insights(job_id: Optional[int] = typer.Argument(None)) -> None:
     store.close()
 
 
-@app.command("rank")
-def rank_jobs() -> None:
-    """Ask the model to order your shortlist and say why."""
-    from jobhunt.llm import rank_prompt
+def _places() -> str:
+    """A short description of the cities you score, for the advisor."""
+    cities = load_cities(_config_dir() / "cities.yaml")
+    return "\n".join(
+        f"{c.name}, {c.country}: {c.sunshine_hours:.0f} sunshine hours, "
+        f"nature {c.nature:.0f}/10, rent index {c.rent_index:.0f}"
+        for c in cities.values()
+    )
+
+
+@app.command("advise")
+def advise(
+    stage: Optional[str] = typer.Option(None, "--stage",
+                                        help="Only this stage, e.g. shortlisted"),
+    limit: int = typer.Option(60, "--limit", help="Most jobs to consider"),
+    model: Optional[str] = typer.Option(None, "--model",
+                                        help="Override the model, e.g. sonnet"),
+) -> None:
+    """Read across every tracked job and say where to spend applications.
+
+    Per-posting analysis is `enrich`. This is the view across the whole set:
+    what to apply to first, what the patterns are, and what you are missing.
+    """
+    from jobhunt.llm import advise_prompt
 
     store = _open_store()
-    jobs = store.list_jobs(stage=Stage.SHORTLISTED)
-    if not jobs:
-        typer.echo("nothing shortlisted yet")
-        store.close()
-        return
-    profile = _profile()
-    llm = _llm()
+    jobs = store.list_jobs(stage=_parse_stage(stage) if stage else None)[:limit]
     store.close()
-    typer.echo(llm.complete(rank_prompt(jobs, profile)))
+    if not jobs:
+        typer.echo("no jobs to advise on")
+        return
+
+    unread = sum(1 for j in jobs if j.llm_fit is None)
+    if unread:
+        typer.echo(f"note: {unread} of {len(jobs)} have not been read by the "
+                   "model. Run 'jobs enrich' first for a sharper read.\n")
+
+    if model:
+        os.environ["JOBHUNT_MODEL"] = model
+    typer.echo(_llm().complete(advise_prompt(jobs, _profile(), _places())))
 
 
 @app.command()
