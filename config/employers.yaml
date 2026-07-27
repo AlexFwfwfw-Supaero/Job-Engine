@@ -136,3 +136,84 @@ employers:
      careers_url: "https://www.kuleuven.be/personeel/jobsite/vacatures"}
   - {name: Politecnico di Torino, country: IT, city: Turin, ats: manual, tags: [gnss, academic, phd],
      careers_url: "https://www.polito.it/en/work-with-us"}
+
+  # --- engineering consultancies ---
+  # The consulting channel. These firms place engineers into Airbus, Thales,
+  # CNES, ESA and the OEMs, so a large share of the entry-level navigation and
+  # radar work in France is hired through them rather than by the prime
+  # directly. They advertise most heavily on LinkedIn, which cannot be polled —
+  # but the three below run public SmartRecruiters boards carrying the same
+  # postings, with a per-posting country, which is more than Workday gives us.
+  - {name: ALTEN, country: FR, city: Boulogne-Billancourt, ats: smartrecruiters,
+     ats_endpoint: "alten", poll_enabled: true, tags: [consulting, radar, navigation],
+     careers_url: "https://www.alten.fr/nos-offres/",
+     notes: "CONFIRMED 2026-07-27 — SmartRecruiters 'alten', ~1100 postings.
+             Mostly non-relevant; the matcher discards them. Places into Airbus,
+             Thales, Safran, Dassault."}
+  - {name: Assystem, country: FR, city: Courbevoie, ats: smartrecruiters,
+     ats_endpoint: "assystem", poll_enabled: true, tags: [consulting, systems],
+     careers_url: "https://www.assystem.com/en/careers/",
+     notes: "CONFIRMED 2026-07-27 — SmartRecruiters 'assystem', ~990 postings.
+             Nuclear-heavy, but carries space and defence systems work."}
+  - {name: Scalian, country: FR, city: Toulouse, ats: smartrecruiters,
+     ats_endpoint: "scalian", poll_enabled: true, tags: [consulting, space, radar],
+     careers_url: "https://careers.scalian.com/",
+     notes: "CONFIRMED 2026-07-27 — SmartRecruiters 'scalian', ~620 postings.
+             The most relevant of the three: GNSS and SAR payload roles present
+             on the board at discovery time."}
+  - {name: Expleo, country: FR, city: Montigny-le-Bretonneux, ats: manual,
+     tags: [consulting, aerospace],
+     careers_url: "https://careers.expleo.com/",
+     notes: "Probed 2026-07-27: not on SmartRecruiters, Recruitee, Lever,
+             Workable, Personio, Greenhouse or Breezy. LinkedIn searches only —
+             see linkedin_companies in scoring.yaml."}
+  - {name: Akkodis, country: FR, city: Lyon, ats: manual, tags: [consulting, aerospace],
+     careers_url: "https://www.akkodis.com/en/careers",
+     notes: "Probed 2026-07-27: no public board API found. LinkedIn only."}
+  - {name: Capgemini Engineering, country: FR, city: Blagnac, ats: manual,
+     tags: [consulting, aerospace],
+     careers_url: "https://www.capgemini.com/careers/join-capgemini/job-search/",
+     notes: "Ex-Altran. Custom Capgemini board, no public API. LinkedIn only."}
+  - {name: Sopra Steria, country: FR, city: Toulouse, ats: manual, tags: [consulting, space],
+     careers_url: "https://www.soprasteria.com/careers",
+     notes: "Absorbed CS Group, which held real space and defence work.
+             Probed 2026-07-27: SmartRecruiters slug empty. LinkedIn only."}
+  - {name: SEGULA Technologies, country: FR, city: Nanterre, ats: manual,
+     tags: [consulting, aerospace],
+     careers_url: "https://www.segulatechnologies.com/en/careers/",
+     notes: "SmartRecruiters 'segulatechnologies' exists but held one posting at
+             discovery — a stale account. Real postings are on LinkedIn."}
+  - {name: SII Group, country: FR, city: Toulouse, ats: manual, tags: [consulting, aerospace],
+     careers_url: "https://sii-group.com/en-FR/careers",
+     notes: "Probed 2026-07-27: no public board API found. LinkedIn only."}
+
+  # --- ESA support contractors ---
+  # Most engineering physically done at ESTEC, ESOC and ESRIN is advertised by
+  # contractors, not by ESA. A watchlist that stops at jobs.esa.int misses the
+  # majority of roles at ESA sites.
+  - {name: ATG Europe, country: NL, city: Noordwijk, ats: recruitee,
+     ats_endpoint: "atgeurope", poll_enabled: true, tags: [space, contractor, esa],
+     careers_url: "https://jobs.atg-europe.com/",
+     notes: "CONFIRMED 2026-07-27 — Recruitee 'atgeurope', ~46 postings across
+             ESTEC, ESOC, Redu and Frascati. Department field names the ESA site."}
+  - {name: HE Space Operations, country: NL, city: Noordwijk, ats: manual,
+     tags: [space, contractor, esa],
+     careers_url: "https://www.hespace.com/vacancies/",
+     notes: "Probed 2026-07-27: not on Recruitee, SmartRecruiters or Personio.
+             Manual — one of the largest ESA staffing contractors."}
+  - {name: RHEA Group, country: BE, city: Wavre, ats: manual,
+     tags: [space, contractor, esa],
+     careers_url: "https://www.rheagroup.com/careers/",
+     notes: "Probed 2026-07-27: no public board API found. Manual."}
+  - {name: Solenix, country: DE, city: Darmstadt, ats: manual,
+     tags: [space, contractor, esa],
+     careers_url: "https://www.solenix.ch/careers",
+     notes: "ESOC-facing. Probed 2026-07-27: no public board API found."}
+  - {name: Serco Europe, country: NL, city: Noordwijk, ats: manual,
+     tags: [space, contractor, esa],
+     careers_url: "https://careers.serco.com/",
+     notes: "Probed 2026-07-27: no public board API found. Watch the UK
+             exclusion — Serco advertises heavily in GB."}
+  - {name: Terma, country: DK, city: Herlev, ats: manual, tags: [space, radar, defense],
+     careers_url: "https://www.terma.com/careers/",
+     notes: "Radar and space, both in scope. Probed 2026-07-27: no public API."}

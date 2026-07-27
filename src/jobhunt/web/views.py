@@ -9,7 +9,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from jobhunt.config import load_cities, load_comp, load_deadlines, load_scoring
 from jobhunt.deadlines import upcoming
-from jobhunt.linkedin import build_links, locations_from_cities
+from jobhunt.linkedin import build_links, company_links, locations_from_cities
 from jobhunt.models import Job, Stage
 from jobhunt.score import compensation
 from jobhunt.staleness import due_jobs
@@ -129,12 +129,16 @@ def overview_context(store: Store, deps: Deps) -> dict:
     }
 
 
-def _linkedin_groups(cfg, cities) -> list[tuple[str, list]]:
-    """LinkedIn search links grouped by location, one group per city."""
+def _group_links(links) -> list[tuple[str, list]]:
     groups: dict[str, list] = {}
-    for link in build_links(cfg, locations_from_cities(cities)):
+    for link in links:
         groups.setdefault(link.location, []).append(link)
     return sorted(groups.items())
+
+
+def _linkedin_groups(cfg, cities) -> list[tuple[str, list]]:
+    """LinkedIn search links grouped by location, one group per city."""
+    return _group_links(build_links(cfg, locations_from_cities(cities)))
 
 
 def ai_progress():
@@ -151,6 +155,7 @@ def search_context(store: Store, deps: Deps) -> dict:
     cfg, _comp_cfg, cities = _load_config(deps)
     return {
         "linkedin_groups": _linkedin_groups(cfg, cities),
+        "consultancy_groups": _group_links(company_links(cfg)),
         "ai_available": deps.llm() is not None,
         "ai_progress": ai_progress(),
         "tabs": TABS,

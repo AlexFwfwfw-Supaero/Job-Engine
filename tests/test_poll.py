@@ -243,3 +243,36 @@ def test_every_registered_source_accepts_the_kwargs_it_is_given():
         accepted = set(inspect.signature(fetch).parameters)
         passed = set(source_kwargs(ats, cfg, {"max_pages": 3}))
         assert passed <= accepted, f"{ats} cannot accept {passed - accepted}"
+
+
+def test_the_consulting_and_contractor_sources_are_registered():
+    """Consultancies and ESA contractors are where the postings LinkedIn
+    monopolises actually originate."""
+    from jobhunt.poll import SOURCE_REGISTRY, UNPAGINATED
+
+    assert "smartrecruiters" in SOURCE_REGISTRY
+    assert "recruitee" in SOURCE_REGISTRY
+    # SmartRecruiters boards run to a thousand postings and must be paged.
+    assert "smartrecruiters" not in UNPAGINATED
+    assert "recruitee" in UNPAGINATED
+
+
+def test_smartrecruiters_gets_a_page_budget_that_covers_its_board():
+    """A page is 100 postings here and 20 on Workday, so the shared --max-pages
+    of 5 would stop at 500 of a 1100-posting board — the live poll did exactly
+    that and silently saw less than half of ALTEN."""
+    from jobhunt.config import ScoringConfig
+    from jobhunt.poll import source_kwargs
+    from jobhunt.sources import smartrecruiters
+
+    cfg = ScoringConfig(weights={}, qol_weights={}, role_families=[])
+    kwargs = source_kwargs("smartrecruiters", cfg, {"max_pages": 5})
+    assert kwargs["max_pages"] >= smartrecruiters.DEFAULT_MAX_PAGES
+
+
+def test_an_explicit_deeper_page_budget_is_respected():
+    from jobhunt.config import ScoringConfig
+    from jobhunt.poll import source_kwargs
+
+    cfg = ScoringConfig(weights={}, qol_weights={}, role_families=[])
+    assert source_kwargs("smartrecruiters", cfg, {"max_pages": 40})["max_pages"] == 40

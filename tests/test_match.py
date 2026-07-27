@@ -158,3 +158,52 @@ def test_r_and_t_is_matched_as_a_whole_token(cfg):
     cfg.role_modifiers = RoleModifiers(weight=0.15, keywords=["r&t"])
     assert evaluate("Ingénieur R&T RF MEMS GNSS", "", "FR", cfg).modifiers == ["r&t"]
     assert evaluate("GNSS Parts Engineer", "", "FR", cfg).modifiers == []
+
+
+# --- ambiguous keywords, found by polling consulting boards -------------
+
+def _live_cfg():
+    from pathlib import Path
+
+    from jobhunt.config import load_scoring
+
+    return load_scoring(Path("config/scoring.yaml"))
+
+
+def test_ppp_the_financing_model_is_not_precise_point_positioning():
+    """Consulting boards are full of infrastructure work. 'PPP Expert /
+    Financial Analyst' outscored a real Toulouse GNSS architect role, because
+    bare 'ppp' means public-private partnership far more often than it means
+    precise point positioning."""
+    from jobhunt.match import evaluate
+
+    cfg = _live_cfg()
+    finance = evaluate("PPP Expert / Financial Analyst", "", "IN", cfg)
+    gnss = evaluate("Architecte système en navigation par satellites", "", "FR", cfg)
+    assert finance.role_fit < gnss.role_fit
+
+
+def test_cost_estimation_is_not_state_estimation():
+    from jobhunt.match import evaluate
+
+    assert not evaluate("Design & Estimation Expert", "", "IN", _live_cfg()).relevant
+
+
+def test_the_real_estimation_terms_still_match():
+    from jobhunt.match import evaluate
+
+    cfg = _live_cfg()
+    for title in ("State Estimation Engineer", "Orbit Determination Analyst",
+                  "Kalman Filter Engineer", "Precise Point Positioning Specialist"):
+        assert evaluate(title, "", "FR", cfg).relevant, title
+
+
+def test_the_search_stays_in_europe():
+    """SmartRecruiters reports a real per-posting country, so out-of-scope
+    postings can finally be dropped instead of stored as French ones."""
+    from jobhunt.match import evaluate
+
+    cfg = _live_cfg()
+    assert not evaluate("GNSS Systems Specialist", "", "CA", cfg).relevant
+    assert not evaluate("SAR Payload System Engineer", "", "IN", cfg).relevant
+    assert evaluate("GNSS Systems Specialist", "", "FR", cfg).relevant

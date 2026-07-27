@@ -88,3 +88,35 @@ def test_locations_are_sorted_and_deduplicated():
         "munich2": city("Munich", "DE"),
     }
     assert locations_from_cities(cities) == ["Munich, Germany", "Toulouse, France"]
+
+
+# --- consultancies, which advertise almost exclusively on LinkedIn ------
+
+def cfg_with(companies):
+    from jobhunt.config import ScoringConfig
+
+    return ScoringConfig(weights={}, qol_weights={}, role_families=[],
+                         poll_search_terms=["gnss"],
+                         linkedin_companies=companies)
+
+
+def test_company_links_pair_each_consultancy_with_each_domain():
+    from jobhunt.linkedin import COMPANY_TERMS, company_links
+
+    links = company_links(cfg_with(["Expleo", "Akkodis"]))
+    assert len(links) == 2 * len(COMPANY_TERMS)
+    assert {link.location for link in links} == {"Expleo", "Akkodis"}
+
+
+def test_a_company_link_searches_the_company_and_the_domain_together():
+    from jobhunt.linkedin import company_links
+
+    link = company_links(cfg_with(["Expleo"]))[0]
+    assert "Expleo" in link.url
+    assert "f_TPR=r604800" in link.url and "sortBy=DD" in link.url
+
+
+def test_no_configured_companies_means_no_links():
+    from jobhunt.linkedin import company_links
+
+    assert company_links(cfg_with([])) == []

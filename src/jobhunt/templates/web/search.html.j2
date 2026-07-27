@@ -57,6 +57,22 @@ anything worth keeping with the form below.</p>
 <code>config/scoring.yaml</code> and cities to <code>config/cities.yaml</code>.</p>
 {% endfor %}
 
+{% if consultancy_groups %}
+<h2>Consultancies <span class="sub">(manual channel)</span></h2>
+<p class="sub">Engineering consultancies staff people into Airbus, Thales, ESA
+and the OEMs, and they advertise on LinkedIn far more than on their own boards.
+The ones with a public board — ALTEN, Assystem, Scalian, ATG Europe — are
+polled with everything else and are not listed here. These are the rest: one
+search per firm per domain, last 7 days, newest first.</p>
+{% for company, links in consultancy_groups %}
+<details>
+  <summary>{{ company }} <span class="sub">({{ links|length }} searches)</span></summary>
+  <p>{% for link in links %}<a href="{{ link.url }}" target="_blank"
+     rel="noopener noreferrer">{{ link.term }}</a>{{ ' · ' if not loop.last }}{% endfor %}</p>
+</details>
+{% endfor %}
+{% endif %}
+
 <h2>Add a job</h2>
 <form method="post" action="/jobs" class="bar">
   <div><label for="url">Posting URL</label>

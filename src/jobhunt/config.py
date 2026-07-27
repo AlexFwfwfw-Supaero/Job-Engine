@@ -44,6 +44,9 @@ class ScoringConfig:
     rent_range: list[int] = field(default_factory=lambda: [400, 1800])
     poll_search_terms: list[str] = field(default_factory=list)
     role_modifiers: RoleModifiers = field(default_factory=RoleModifiers)
+    # Consultancies that advertise almost exclusively on LinkedIn, which
+    # cannot be polled. These become pre-built searches, not poll targets.
+    linkedin_companies: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -94,6 +97,7 @@ def load_scoring(path: Path) -> ScoringConfig:
         sunshine_range=raw.get("sunshine_range", [1300, 2900]),
         rent_range=raw.get("rent_range", [400, 1800]),
         poll_search_terms=raw.get("poll_search_terms", []),
+        linkedin_companies=raw.get("linkedin_companies", []),
         role_modifiers=RoleModifiers(
             weight=float(raw.get("role_modifiers", {}).get("weight", 0.0)),
             keywords=[

@@ -7,7 +7,10 @@ from jobhunt.config import City, CompConfig, ScoringConfig
 from jobhunt.match import evaluate
 from jobhunt.models import Employer, Job
 from jobhunt.score import compensation, quality_of_life, total_score
-from jobhunt.sources import breezy, euraxess, greenhouse, successfactors, workday
+from jobhunt.sources import (
+    breezy, euraxess, greenhouse, recruitee, smartrecruiters, successfactors,
+    workday,
+)
 from jobhunt.sources.base import RawPosting
 from jobhunt.store import Store
 
@@ -18,11 +21,13 @@ SOURCE_REGISTRY: dict[str, Callable] = {
     successfactors.NAME: successfactors.fetch,
     breezy.NAME: breezy.fetch,
     greenhouse.NAME: greenhouse.fetch,
+    smartrecruiters.NAME: smartrecruiters.fetch,
+    recruitee.NAME: recruitee.fetch,
 }
 
 # Sources that return their whole board in one unpaginated response and so
 # take no max_pages; passing one would raise TypeError.
-UNPAGINATED = frozenset({breezy.NAME, greenhouse.NAME})
+UNPAGINATED = frozenset({breezy.NAME, greenhouse.NAME, recruitee.NAME})
 
 
 def source_kwargs(ats: str, cfg: ScoringConfig, common: dict) -> dict:
@@ -35,6 +40,13 @@ def source_kwargs(ats: str, cfg: ScoringConfig, common: dict) -> dict:
     kwargs = dict(common)
     if ats == workday.NAME:
         kwargs["search_terms"] = list(cfg.poll_search_terms)
+    if ats == smartrecruiters.NAME:
+        # A page is 100 postings here against Workday's 20, and these boards
+        # run past a thousand. Sharing one page count meant the first live
+        # poll stopped at 500 of ALTEN's 1104 without saying so.
+        kwargs["max_pages"] = max(
+            int(kwargs.get("max_pages") or 0), smartrecruiters.DEFAULT_MAX_PAGES
+        )
     if ats in UNPAGINATED:
         kwargs.pop("max_pages", None)
     return kwargs

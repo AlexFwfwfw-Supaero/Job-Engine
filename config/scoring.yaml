@@ -3,7 +3,12 @@ qol_weights: {sunshine: 0.45, nature: 0.35, rent: 0.20}
 sunshine_range: [1300, 2900]
 rent_range: [400, 1800]
 
-excluded_countries: [GB]
+# GB: no right to work post-Brexit. The rest are out of the search area —
+# consulting boards are global, and SmartRecruiters reports a real
+# per-posting country, so these can finally be dropped rather than stored
+# under the employer's headquarters.
+excluded_countries: [GB, US, CA, MX, BR, IN, CN, SG, JP, KR, AU, NZ,
+                     AE, SA, QA, IL, ZA, MA, EG, RU]
 known_languages: [en, fr, es, pt]
 language_keywords:
   de: ["german language", "deutschkenntnisse", "fluent german", "german is required"]
@@ -59,7 +64,11 @@ role_families:
     weight: 1.0
     keywords: ["gnss", "gps", "galileo", "egnos", "sbas", "waas", "glonass",
                "beidou", "receiver", "signal processing",
-               "correlator", "acquisition and tracking", "rtk", "ppp"]
+               "correlator", "acquisition and tracking", "rtk",
+               # Bare "ppp" was removed: on consulting boards it is
+               # public-private partnership, and "PPP Expert / Financial
+               # Analyst" in Hyderabad outscored a real Toulouse GNSS role.
+               "precise point positioning", "ppp-rtk"]
   - name: pnt
     weight: 1.0
     keywords: ["pnt", "integrity", "spoofing", "jamming", "interference",
@@ -71,8 +80,11 @@ role_families:
                "navigation payload"]
   - name: sensor_fusion
     weight: 0.9
-    keywords: ["sensor fusion", "kalman", "estimation", "inertial", "imu",
-               "ins", "state estimation", "slam"]
+    # Bare "estimation" was removed: it matched cost and quantity estimation
+    # on consulting boards. The qualified forms carry the same signal.
+    keywords: ["sensor fusion", "kalman", "inertial", "imu",
+               "ins", "state estimation", "orbit estimation",
+               "attitude estimation", "estimation theory", "slam"]
   - name: radar
     weight: 0.8
     keywords: ["radar", "sar", "doppler", "waveform", "beamforming",
@@ -82,3 +94,20 @@ role_families:
     weight: 0.5
     keywords: ["autonomous driving", "geodesy", "remote sensing",
                "digital signal processing", "software defined radio"]
+
+# Consultancies with no pollable board. These become pre-built LinkedIn
+# searches on the Job Search tab — one per firm per domain — because LinkedIn
+# has no public API and its terms forbid scraping. Firms whose board IS
+# pollable (ALTEN, Assystem, Scalian) belong in employers.yaml instead, not
+# here: listing them twice would mean opening searches for jobs already stored.
+linkedin_companies:
+  - Expleo
+  - Akkodis
+  - Capgemini Engineering
+  - Sopra Steria
+  - SEGULA Technologies
+  - SII Group
+  - Davidson Consulting
+  - Amaris Consulting
+  - HE Space
+  - RHEA Group

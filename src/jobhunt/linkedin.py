@@ -76,3 +76,28 @@ def build_links(cfg: ScoringConfig, locations: list[str]) -> list[SearchLink]:
         for term in cfg.poll_search_terms
         for place in places
     ]
+
+
+# The consulting channel. These firms staff engineers into Airbus, Thales, ESA
+# and the OEMs, and they advertise on LinkedIn far more than on their own
+# boards — the ones with a pollable board are polled instead and do not belong
+# here. One search per firm per domain: crossing them with cities as well
+# would produce hundreds of links nobody opens, and a consultancy will move
+# you between sites anyway.
+COMPANY_TERMS = (
+    "GNSS", "radar", "navigation", "signal processing", "traitement du signal",
+)
+
+
+def company_links(cfg: ScoringConfig) -> list[SearchLink]:
+    """One LinkedIn search per configured consultancy per domain term.
+
+    `location` carries the company name so the UI can group by firm — these
+    searches are deliberately not tied to a city.
+    """
+    return [
+        SearchLink(term=term, location=company,
+                   url=search_url(f"{company} {term}", ""))
+        for company in cfg.linkedin_companies
+        for term in COMPANY_TERMS
+    ]
