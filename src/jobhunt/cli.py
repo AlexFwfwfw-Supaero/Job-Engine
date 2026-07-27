@@ -510,14 +510,18 @@ def advise(
     """Read across every tracked job and say where to spend applications.
 
     Per-posting analysis is `enrich`. This is the view across the whole set:
-    what to apply to first, what the patterns are, and what you are missing.
+    what to apply to first with the trade-offs spelled out, what each employer
+    is like to work inside, the patterns, and what you are missing.
+
+    The briefing is stored, so the Advice tab in the web UI shows this same
+    text rather than paying for a second opinion.
     """
-    from jobhunt.llm import advise_prompt
+    from jobhunt.advise import build_briefing
 
     store = _open_store()
     jobs = store.list_jobs(stage=_parse_stage(stage) if stage else None)[:limit]
-    store.close()
     if not jobs:
+        store.close()
         typer.echo("no jobs to advise on")
         return
 
@@ -528,7 +532,25 @@ def advise(
 
     if model:
         os.environ["JOBHUNT_MODEL"] = model
-    typer.echo(_llm().complete(advise_prompt(jobs, _profile(), _places())))
+    try:
+        briefing = build_briefing(store, jobs, _profile(), _places(), _llm(),
+                                  _now(), scope=stage or "all")
+    finally:
+        store.close()
+    typer.echo(briefing.text)
+
+
+@app.command("briefing")
+def briefing() -> None:
+    """Print the last stored briefing without spending another call."""
+    store = _open_store()
+    latest = store.latest_briefing()
+    store.close()
+    if latest is None:
+        typer.echo("no briefing yet — run 'jobs advise'")
+        raise typer.Exit(code=1)
+    typer.echo(f"# {latest.ts} · {latest.job_count} job(s) · {latest.scope}\n")
+    typer.echo(latest.text)
 
 
 @app.command()

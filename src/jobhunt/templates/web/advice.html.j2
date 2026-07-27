@@ -1,0 +1,57 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1>Advice</h1>
+
+<p class="sub">One pass by the model across every job at once — what to apply
+to first and why, what each employer is actually like to work inside, the
+patterns across the set, and what you are missing. This is the read the
+per-job analysis cannot give you.</p>
+
+{% if ai_available %}
+<div class="bar">
+  <form method="post" action="/actions/advise">
+    <input type="hidden" name="scope" value="all">
+    <button type="submit" {{ 'disabled' if ai_progress.running or not job_count }}>
+      Advise on all {{ job_count }}</button>
+  </form>
+  <form method="post" action="/actions/advise">
+    <input type="hidden" name="scope" value="shortlisted">
+    <button type="submit" {{ 'disabled' if ai_progress.running or not shortlist_count }}>
+      Advise on the {{ shortlist_count }} shortlisted</button>
+  </form>
+</div>
+{% else %}
+<p class="sub warn">No model available. Install and log in to the
+<code>claude</code> CLI (uses your Claude plan) or set
+<code>ANTHROPIC_API_KEY</code>. Everything else in the tracker works
+without either.</p>
+{% endif %}
+
+{% if ai_progress.running %}
+<p class="sub"><strong>Writing the briefing.</strong> One call across
+{{ ai_progress.total }} job(s), so this takes under a minute. Reload to see it.</p>
+{% endif %}
+
+{% if unread_count %}
+<p class="sub">{{ unread_count }} job(s) have not been read by the model yet, so
+the briefing judges those on title and score alone. Run <em>Rescore all</em> on
+the Job Search tab first for a sharper read.</p>
+{% endif %}
+
+{% if briefing %}
+<h2>Briefing <span class="sub">{{ briefing.ts[:16].replace('T', ' ') }} UTC ·
+  {{ briefing.job_count }} job(s) · {{ briefing.scope }}</span></h2>
+<p class="sub">The model knows these employers from general reputation, not
+from the postings — it is told to mark those claims <code>reputation:</code>.
+Treat them as a starting point to check, not as fact.</p>
+<pre class="advice">{{ briefing.text }}</pre>
+{% else %}
+<p class="empty">No briefing yet. Generate one above.</p>
+{% endif %}
+
+<style>
+  pre.advice { white-space: pre-wrap; line-height: 1.55; font: inherit;
+               border: 1px solid var(--line); border-radius: 6px;
+               padding: 1rem; overflow-x: auto; }
+</style>
+{% endblock %}

@@ -117,10 +117,12 @@ Reply with a single JSON object and nothing else:
   "angle": "one sentence on what this candidate should lead with"}}"""
 
 
-def _digest_line(job: Job) -> str:
+def _digest_line(job: Job, employer: str = "") -> str:
     """One line per job, carrying everything the advisor should weigh."""
-    parts = [f"[{job.id}] {job.title}", f"{job.city} {job.country}".strip(),
-             f"score {job.total_score:.2f}"]
+    parts = [f"[{job.id}] {job.title}"]
+    if employer:
+        parts.append(f"at {employer}")
+    parts += [f"{job.city} {job.country}".strip(), f"score {job.total_score:.2f}"]
     if job.priority:
         parts.append(f"your priority {job.priority}")
     if job.llm_fit is None:
@@ -141,14 +143,29 @@ def _digest_line(job: Job) -> str:
     return " | ".join(parts)
 
 
-def advise_prompt(jobs: list[Job], profile: str, places: str = "") -> str:
+def advise_prompt(
+    jobs: list[Job],
+    profile: str,
+    places: str = "",
+    employers: dict[int, str] | None = None,
+) -> str:
     """Ask for a read across the whole set, not a score per job.
 
     Per-posting analysis already exists; what a person cannot do quickly is
     look at a hundred rows at once and say what the pattern is and where the
     effort should go.
+
+    The per-job verdicts answer "does this match". This answers the questions
+    that actually decide an application: what the job leads to, what the
+    employer is like to work inside, and which doors it opens or closes. Much
+    of that is not in any posting — it is what the model knows about these
+    organisations — so it must be labelled as reputation rather than passed
+    off as something read off the page.
     """
-    listing = "\n".join(_digest_line(job) for job in jobs)
+    names = employers or {}
+    listing = "\n".join(
+        _digest_line(job, names.get(job.employer_id, "")) for job in jobs
+    )
     location_note = f"\n\nPLACES\n{places}" if places else ""
     return f"""You are advising one candidate on where to spend their applications.
 
@@ -158,17 +175,38 @@ CANDIDATE
 JOBS
 {listing}
 
-Give, in plain text:
+Write plain text with these four sections:
 
-1. The five to eight jobs worth applying to first, strongest first, each with
-   one concrete sentence on why it beats the alternatives. Reference each by
-   its [id].
-2. The patterns you see across the whole set — which employers, cities,
-   domains or role types keep producing good matches, and which keep
-   producing near-misses and why.
-3. Anything the candidate appears to be missing or over-weighting, including
-   jobs ranked high by score that you would skip, and why.
+1. TOP PICKS — the five to ten jobs worth applying to first, strongest
+   first, each referenced by its [id]. For each one, give a short paragraph
+   covering, only where you have something real to say:
+   - career prospects: what this leads to in three to five years
+   - salary: what the pay band and its trajectory look like
+   - quality of life: the city, the hours, the working culture
+   - domain versatility: how transferable the skills are, and which adjacent
+     fields it opens — space to automotive, GNSS to radar, industry to
+     academia and back
+   - how stimulating the work is: typical engineering versus frontier
+     research, how much of the job is genuinely open problems
+   - defence and dual-use: whether this is a route into defence work, and
+     what nationality or clearance constraints come with it
+   - one non-obvious fact worth knowing before applying
+2. EMPLOYERS — one short paragraph per organisation appearing above. Say what
+   it is genuinely good at, whether its engineering is rigorous and
+   process-driven or fast and improvised, how bureaucratic it is to work
+   inside, and whether it does typical engineering or frontier research.
+3. PATTERNS — which employers, cities, domains or role types keep producing
+   good matches, and which keep producing near-misses and why. What patterns of job
+   appear more frequently and what qualifications are the most demanded acroos
+   the job market. What markets/projects are being posted more frequently 
+   for hiring.
+4. BLIND SPOTS — what the candidate appears to be missing or over-weighting,
+   including jobs ranked high by score that you would skip, and why.
 
+Ground rules. Anything you know about an employer's culture, pay or
+prospects comes from general reputation, not from these postings: mark those
+claims "reputation:" so they are not mistaken for something the posting said.
+Say "I don't know" rather than guessing about a small or unfamiliar employer.
 Jobs marked "not read by the model yet" have not been analysed; say so rather
 than implying a judgment. Be direct about weak options. Do not invent jobs or
 details that are not listed above."""
@@ -301,7 +339,9 @@ class ClaudeCodeLLM:
             "--append-system-prompt", self.SYSTEM,
         ]
 
-    def complete(self, prompt: str) -> str:
+    def complete(self, prompt: str, max_tokens: int | None = None) -> str:
+        # The CLI has no token cap to set; accepted so callers that need a
+        # long answer can ask for one without caring which backend they got.
         runner = self._runner
         if runner is None:
             import subprocess
@@ -330,10 +370,10 @@ class AnthropicLLM:
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = model
 
-    def complete(self, prompt: str) -> str:
+    def complete(self, prompt: str, max_tokens: int | None = None) -> str:
         message = self.client.messages.create(
             model=self.model,
-            max_tokens=MAX_TOKENS,
+            max_tokens=max_tokens or MAX_TOKENS,
             messages=[{"role": "user", "content": prompt}],
         )
         return "".join(

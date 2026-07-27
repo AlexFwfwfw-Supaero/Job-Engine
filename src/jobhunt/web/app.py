@@ -21,7 +21,7 @@ from jobhunt.sources.manual import posting_from_url
 from jobhunt.store import Store
 from jobhunt.web.deps import Deps
 from jobhunt.web.views import (
-    TABS, applied_context, archive_context, deadlines_context,
+    TABS, advice_context, applied_context, archive_context, deadlines_context,
     interested_context, overview_context, render_tab, search_context,
 )
 
@@ -32,6 +32,7 @@ CONTEXT_BUILDERS = {
     "applied": applied_context,
     "archive": archive_context,
     "deadlines": deadlines_context,
+    "advice": advice_context,
 }
 
 KNOWN_TABS = {slug for slug, _, _ in TABS}
@@ -60,6 +61,35 @@ class Progress:
 
 
 PROGRESS = Progress()
+# The whole-set briefing is one call, but a slow one — a long prompt and a long
+# answer. It gets its own record so it can run while postings are being read.
+ADVICE = Progress()
+
+
+def _write_briefing(deps: Deps, llm, scope: str) -> None:
+    """Ask for the briefing off the request thread, with its own store."""
+    from jobhunt.advise import build_briefing
+
+    store = deps.store_factory()
+    try:
+        jobs = store.list_jobs(
+            stage=Stage.SHORTLISTED if scope == "shortlisted" else None
+        )
+        build_briefing(store, jobs, deps.profile(), _places(deps), llm,
+                       _now(), scope=scope)
+    finally:
+        ADVICE.finish(1, 0)
+        store.close()
+
+
+def _places(deps: Deps) -> str:
+    """The cities you score, described for the advisor."""
+    cities = load_cities(deps.config_dir / "cities.yaml")
+    return "\n".join(
+        f"{c.name}, {c.country}: {c.sunshine_hours:.0f} sunshine hours, "
+        f"nature {c.nature:.0f}/10, rent index {c.rent_index:.0f}"
+        for c in cities.values()
+    )
 
 
 def _read_all(deps: Deps, cfg, llm, jobs) -> None:
@@ -297,6 +327,30 @@ def create_app(deps: Deps) -> FastAPI:
             PROGRESS.start(len(unread))
             deps.background(lambda: _read_all(deps, cfg, llm, unread))
         return RedirectResponse(_safe_return(return_to), status_code=SEE_OTHER)
+
+    @app.post("/actions/advise")
+    def advise(scope: str = Form("all")) -> RedirectResponse:
+        """Write the whole-set briefing. One call, but a long one, so it runs
+        in the background and the tab shows the previous briefing meanwhile."""
+        llm = deps.llm()
+        if llm is None:
+            raise HTTPException(
+                status_code=503,
+                detail="No model available. Install and log in to the claude "
+                       "CLI (uses your Claude plan) or set ANTHROPIC_API_KEY.",
+            )
+        store = deps.store_factory()
+        try:
+            count = len(store.list_jobs(
+                stage=Stage.SHORTLISTED if scope == "shortlisted" else None
+            ))
+        finally:
+            store.close()
+
+        if count and not ADVICE.running:
+            ADVICE.start(count)
+            deps.background(lambda: _write_briefing(deps, llm, scope))
+        return RedirectResponse("/advice", status_code=SEE_OTHER)
 
     @app.post("/actions/refresh")
     def refresh(return_to: str = Form("search")) -> RedirectResponse:

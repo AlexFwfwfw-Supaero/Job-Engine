@@ -108,3 +108,18 @@ class Deadline:
     url: str = ""
     lead_days: int = 42
     notes: str = ""
+
+
+@dataclass
+class Briefing:
+    """One whole-set reading by the model: what to apply to, and why.
+
+    Stored rather than regenerated because it costs a model call, and because
+    the CLI and the browser must show the same advice.
+    """
+
+    ts: str
+    text: str
+    scope: str = ""
+    job_count: int = 0
+    id: int | None = None

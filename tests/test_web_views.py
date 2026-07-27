@@ -71,7 +71,7 @@ def test_tabs_start_with_overview():
     assert TABS[0][0] == "overview"
     slugs = [slug for slug, _, _ in TABS]
     assert slugs == ["overview", "search", "interested", "applied",
-                     "archive", "deadlines"]
+                     "archive", "deadlines", "advice"]
     assert all(blurb for _, _, blurb in TABS)
 
 

@@ -346,3 +346,70 @@ def test_advise_prompt_marks_jobs_the_model_has_not_read():
 
     prompt = advise_prompt([advisable(id=1, llm_fit=None)], "profile", "")
     assert "not read" in prompt.lower()
+
+
+# --- the briefing: pros, cons and what the employer is actually like ----
+
+def test_advise_prompt_names_the_employer_for_each_job():
+    """Company character is half the question, so the model must know who
+    is hiring, not just the job title."""
+    from jobhunt.llm import advise_prompt
+
+    prompt = advise_prompt([advisable(id=1)], "profile", "",
+                           employers={1: "Thales Alenia Space"})
+    assert "Thales Alenia Space" in prompt
+
+
+def test_advise_prompt_asks_for_the_decision_dimensions():
+    from jobhunt.llm import advise_prompt
+
+    prompt = advise_prompt([advisable(id=1)], "profile", "").lower()
+    for want in ("career", "salary", "quality of life", "versatil",
+                 "stimulating", "defence", "frontier research"):
+        assert want in prompt, want
+
+
+def test_advise_prompt_asks_what_each_employer_is_like_to_work_for():
+    from jobhunt.llm import advise_prompt
+
+    prompt = advise_prompt([advisable(id=1)], "profile", "").lower()
+    assert "bureaucra" in prompt
+    assert "rigorous" in prompt
+
+
+def test_advise_prompt_requires_reputation_to_be_labelled_as_such():
+    """The model knows company culture from general reputation, not from the
+    postings. Unlabelled, that reads as evidence when it is hearsay."""
+    from jobhunt.llm import advise_prompt
+
+    prompt = advise_prompt([advisable(id=1)], "profile", "")
+    assert "reputation" in prompt.lower()
+
+
+def test_the_cli_backend_accepts_a_token_budget_and_ignores_it():
+    """The Claude Code CLI has no max-tokens flag. The briefing still has to
+    be able to ask for one without the call failing."""
+    from jobhunt.llm import ClaudeCodeLLM
+
+    class Result:
+        returncode, stdout, stderr = 0, "text", ""
+
+    llm = ClaudeCodeLLM(runner=lambda cmd, **kw: Result(), cwd="/tmp")
+    assert llm.complete("prompt", max_tokens=8000) == "text"
+
+
+def test_the_api_backend_uses_the_token_budget_it_is_given():
+    from jobhunt.llm import AnthropicLLM
+
+    seen = {}
+
+    class Messages:
+        def create(self, **kwargs):
+            seen.update(kwargs)
+            return type("M", (), {"content": []})()
+
+    llm = AnthropicLLM.__new__(AnthropicLLM)
+    llm.client = type("C", (), {"messages": Messages()})()
+    llm.model = "m"
+    llm.complete("prompt", max_tokens=8000)
+    assert seen["max_tokens"] == 8000

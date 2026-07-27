@@ -30,6 +30,8 @@ TABS = [
      "Jobs you ruled out or that ruled you out, with the reason."),
     ("deadlines", "Deadlines",
      "Recurring application cycles that open and close on a fixed calendar."),
+    ("advice", "Advice",
+     "One read across every job: where to apply, and what the employers are like."),
 ]
 
 APPLIED_STAGES = [Stage.APPLIED, Stage.SCREENING, Stage.INTERVIEW, Stage.OFFER]
@@ -117,6 +119,8 @@ def overview_context(store: Store, deps: Deps) -> dict:
             "deadlines": len(
                 upcoming(load_deadlines(deps.config_dir / "deadlines.yaml"), today)
             ),
+            # How many jobs the standing briefing covers — 0 until one is run.
+            "advice": getattr(store.latest_briefing(), "job_count", 0),
         },
         "due": due_jobs(jobs, events, cfg, today),
         "deadlines": upcoming(
@@ -197,7 +201,28 @@ def deadlines_context(store: Store, deps: Deps) -> dict:
     }
 
 
-WEB_TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "web"
+def advice_progress():
+    from jobhunt.web.app import ADVICE
+
+    return ADVICE
+
+
+def advice_context(store: Store, deps: Deps) -> dict:
+    briefing = store.latest_briefing()
+    jobs = store.list_jobs()
+    return {
+        "tabs": TABS,
+        "active": "advice",
+        "briefing": briefing,
+        "ai_available": deps.llm() is not None,
+        "ai_progress": advice_progress(),
+        "job_count": len(jobs),
+        "shortlist_count": len([j for j in jobs if j.stage is Stage.SHORTLISTED]),
+        "unread_count": len([j for j in jobs if j.llm_fit is None]),
+    }
+
+
+WEB_TEMPLATE_DIR =Path(__file__).resolve().parent.parent / "templates" / "web"
 
 
 def render_tab(slug: str, context: dict,

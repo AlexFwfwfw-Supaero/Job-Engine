@@ -354,3 +354,102 @@ def test_rescore_action_without_a_model_still_applies_the_rules(deps, db_path):
     assert client.post("/actions/rescore",
                        data={"return_to": "search"}).status_code == 303
     assert store.get_job(ids[0]).role_fit == 0.0
+
+
+# --- the advice tab -----------------------------------------------------
+
+class _StubAdvisor:
+    def __init__(self) -> None:
+        self.calls = 0
+        self.max_tokens = None
+
+    def complete(self, prompt, max_tokens=None):
+        self.calls += 1
+        self.max_tokens = max_tokens
+        return "TOP PICKS\n[1] Apply here first."
+
+
+def test_advice_tab_renders_without_a_briefing(client):
+    response = client.get("/advice")
+    assert response.status_code == 200
+    assert "<nav>" in response.text
+
+
+def test_advice_action_writes_a_briefing_and_redirects(deps, db_path):
+    from fastapi.testclient import TestClient
+
+    from jobhunt.web.app import create_app
+
+    seed(db_path)
+    advisor = _StubAdvisor()
+    deps.llm = lambda: advisor
+    deps.profile = lambda: "GNSS graduate"
+    deps.background = lambda fn: fn()
+
+    client = TestClient(create_app(deps), follow_redirects=False)
+    response = client.post("/actions/advise", data={"scope": "all"})
+
+    assert response.status_code == 303
+    assert advisor.calls == 1
+    store = Store(db_path)
+    assert "Apply here first" in store.latest_briefing().text
+
+
+def test_the_briefing_is_shown_on_the_advice_tab(deps, db_path, client):
+    store = Store(db_path)
+    store.initialize()
+    store.save_briefing("2026-07-27T10:00:00Z", "Apply to [3] first",
+                        scope="all", job_count=9)
+    store.close()
+
+    body = client.get("/advice").text
+    assert "Apply to [3] first" in body
+    assert "2026-07-27" in body
+
+
+def test_advice_action_without_a_model_says_so_rather_than_crashing(deps, db_path):
+    from fastapi.testclient import TestClient
+
+    from jobhunt.web.app import create_app
+
+    seed(db_path)
+    client = TestClient(create_app(deps), follow_redirects=False)
+    assert client.post("/actions/advise", data={"scope": "all"}).status_code == 503
+
+
+def test_advice_action_on_an_empty_database_spends_no_call(deps):
+    from fastapi.testclient import TestClient
+
+    from jobhunt.web.app import create_app
+
+    advisor = _StubAdvisor()
+    deps.llm = lambda: advisor
+    deps.background = lambda fn: fn()
+    client = TestClient(create_app(deps), follow_redirects=False)
+
+    assert client.post("/actions/advise", data={"scope": "all"}).status_code == 303
+    assert advisor.calls == 0
+
+
+def test_advice_action_can_be_limited_to_the_shortlist(deps, db_path):
+    """Sixty jobs of digest is a lot of prompt; advising on the shortlist
+    alone is the cheaper, sharper run."""
+    from fastapi.testclient import TestClient
+
+    from jobhunt.web.app import create_app
+
+    seed(db_path, title="GNSS Engineer", url="https://x/1")
+    seed(db_path, title="Radar Engineer", url="https://x/2",
+         stage=Stage.SHORTLISTED)
+    advisor = _StubAdvisor()
+    deps.llm = lambda: advisor
+    deps.background = lambda fn: fn()
+
+    client = TestClient(create_app(deps), follow_redirects=False)
+    client.post("/actions/advise", data={"scope": "shortlisted"})
+
+    prompt = advisor  # the stub keeps only the last call
+    assert prompt.calls == 1
+    store = Store(db_path)
+    assert store.latest_briefing().job_count == 1
+    assert store.latest_briefing().scope == "shortlisted"

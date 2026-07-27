@@ -4,7 +4,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from jobhunt.models import Employer, Event, EventKind, Job, Stage
+from jobhunt.models import Briefing, Employer, Event, EventKind, Job, Stage
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS employers (
@@ -59,6 +59,17 @@ CREATE TABLE IF NOT EXISTS events (
     ts TEXT NOT NULL,
     kind TEXT NOT NULL,
     text TEXT DEFAULT ''
+);
+
+-- One row per whole-set briefing. Kept rather than regenerated per page load:
+-- a briefing costs a model call, and the CLI and the browser must show the
+-- same text. Old ones stay so you can see how the advice moved.
+CREATE TABLE IF NOT EXISTS briefings (
+    id INTEGER PRIMARY KEY,
+    ts TEXT NOT NULL,
+    scope TEXT DEFAULT '',
+    job_count INTEGER DEFAULT 0,
+    text TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_job ON events(job_id, ts);
@@ -262,6 +273,26 @@ class Store:
             (description, llm_fit, llm_json, ts, rank_score, job_id),
         )
         self.conn.commit()
+
+    # --- briefings ------------------------------------------------------
+
+    def save_briefing(self, ts: str, text: str, scope: str = "",
+                      job_count: int = 0) -> int:
+        cur = self.conn.execute(
+            "INSERT INTO briefings (ts, scope, job_count, text) VALUES (?,?,?,?)",
+            (ts, scope, job_count, text),
+        )
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def latest_briefing(self) -> Briefing | None:
+        row = self.conn.execute(
+            "SELECT * FROM briefings ORDER BY ts DESC, id DESC LIMIT 1"
+        ).fetchone()
+        if row is None:
+            return None
+        return Briefing(id=row["id"], ts=row["ts"], scope=row["scope"],
+                        job_count=row["job_count"], text=row["text"])
 
     def set_stage(self, job_id: int, stage: Stage, ts: str) -> None:
         self.conn.execute(
