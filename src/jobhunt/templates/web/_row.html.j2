@@ -27,9 +27,11 @@
 {% endmacro %}
 
 {% macro scorecell(job) %}
-  <span class="score">{{ '%.2f'|format(job.total_score) }}</span>
+  <span class="score">{{ '%.2f'|format(job.rank_score or job.total_score) }}</span>
   <div class="breakdown">
-    fit {{ '%.2f'|format(job.role_fit) }} ·
+    {% if job.llm_fit is not none %}ai fit {{ '%.2f'|format(job.llm_fit) }} ·
+    keyword fit {{ '%.2f'|format(job.role_fit) }}
+    {% else %}fit {{ '%.2f'|format(job.role_fit) }} <em>(unread)</em>{% endif %} ·
     comp {{ '%.2f'|format(job.comp_score) }} ·
     qol {{ '%.2f'|format(job.qol_score) }}
   </div>

@@ -38,6 +38,50 @@ KNOWN_TABS = {slug for slug, _, _ in TABS}
 SEE_OTHER = 303
 
 
+class Progress:
+    """Status of the background AI read, for the page to display.
+
+    A single local user runs one of these at a time, so a module-level record
+    is enough; there is no queue and nothing to persist. Starting a second run
+    while one is going is refused rather than doubling the API usage.
+    """
+
+    def __init__(self) -> None:
+        self.running = False
+        self.total = 0
+        self.done = 0
+        self.failed = 0
+
+    def start(self, total: int) -> None:
+        self.running, self.total, self.done, self.failed = True, total, 0, 0
+
+    def finish(self, done: int, failed: int) -> None:
+        self.running, self.done, self.failed = False, done, failed
+
+
+PROGRESS = Progress()
+
+
+def _read_all(deps: Deps, cfg, llm, jobs) -> None:
+    """Have the model read every unread job. Runs off the request thread, so
+    it opens its own store: SQLite connections belong to one thread."""
+    store = deps.store_factory()
+    client = deps.http_client()
+    try:
+        report = enrich_jobs(store, jobs, deps.profile(), llm,
+                             fetch_posting_text, _now(), client=client,
+                             weights=cfg.weights)
+        PROGRESS.finish(report.analysed, len(report.failed))
+    except Exception:
+        PROGRESS.finish(PROGRESS.done, PROGRESS.failed)
+        raise
+    finally:
+        close = getattr(client, "close", None)
+        if close:
+            close()
+        store.close()
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -231,14 +275,27 @@ def create_app(deps: Deps) -> FastAPI:
 
     @app.post("/actions/rescore")
     def rescore(return_to: str = Form("search")) -> RedirectResponse:
+        """Re-apply the rules, then have the model read everything it has not.
+
+        The rule pass is fast and runs inline. The model pass is not — around
+        eleven seconds per posting, four at a time — so it runs in the
+        background and the page reports progress rather than the browser
+        waiting several minutes for a response.
+        """
         cfg = load_scoring(deps.config_dir / "scoring.yaml")
         comp_cfg = load_comp(deps.config_dir / "comp.yaml")
         cities = load_cities(deps.config_dir / "cities.yaml")
         store = deps.store_factory()
         try:
             rescore_all(store, cfg, comp_cfg, cities)
+            unread = [j for j in store.list_jobs() if j.llm_checked is None]
         finally:
             store.close()
+
+        llm = deps.llm()
+        if llm is not None and unread and not PROGRESS.running:
+            PROGRESS.start(len(unread))
+            deps.background(lambda: _read_all(deps, cfg, llm, unread))
         return RedirectResponse(_safe_return(return_to), status_code=SEE_OTHER)
 
     @app.post("/actions/refresh")

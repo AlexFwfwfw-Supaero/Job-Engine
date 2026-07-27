@@ -84,6 +84,9 @@ class Job:
     llm_fit: float | None = None
     llm_json: str = ""
     llm_checked: str | None = None
+    # What the lists sort by: the weighted score with the model's fit
+    # substituted in once it has read the posting. See score.ranking_score.
+    rank_score: float = 0.0
     id: int | None = None
 
 

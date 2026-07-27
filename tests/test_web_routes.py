@@ -277,3 +277,80 @@ def test_analyse_stores_the_verdict_when_a_model_is_available(deps, db_path):
     job = store.get_job(job_id)
     assert job.llm_fit == 0.9
     assert job.role_fit == 0.5
+
+
+def _seed(db_path, titles):
+    from jobhunt.models import Employer, Job
+
+    store = Store(db_path)
+    store.initialize()
+    store.upsert_employer(Employer(name="Thales", country="FR", city="Toulouse"))
+    ids = []
+    for i, title in enumerate(titles):
+        ids.append(store.upsert_job(Job(
+            employer_id=1, title=title, url=f"https://x/{i}", city="Toulouse",
+            country="FR", role_fit=0.9, total_score=0.9,
+            description="A long posting body about navigation work in Toulouse.",
+        )))
+    return store, ids
+
+
+class _StubLLM:
+    def __init__(self, fit=0.2):
+        import json as _json
+
+        self.reply = _json.dumps({"relevant": True, "domain_fit": fit,
+                                  "reason": "read", "angle": "a"})
+        self.calls = 0
+
+    def complete(self, prompt):
+        self.calls += 1
+        return self.reply
+
+
+def test_rescore_action_also_has_the_model_read_unread_jobs(deps, db_path):
+    """'Rescore all' means the model reads everything, not just a rule pass."""
+    from fastapi.testclient import TestClient
+
+    from jobhunt.web.app import create_app
+
+    store, ids = _seed(db_path, ["GNSS Engineer", "Radar Engineer"])
+    llm = _StubLLM()
+    deps.llm = lambda: llm
+    deps.profile = lambda: "GNSS graduate"
+    deps.background = lambda fn: fn()  # run inline so the test is not a race
+
+    client = TestClient(create_app(deps), follow_redirects=False)
+    response = client.post("/actions/rescore", data={"return_to": "search"})
+
+    assert response.status_code == 303
+    assert llm.calls == 2
+    assert store.get_job(ids[0]).llm_fit == 0.2
+
+
+def test_rescore_action_leaves_already_read_jobs_alone(deps, db_path):
+    from fastapi.testclient import TestClient
+
+    from jobhunt.web.app import create_app
+
+    store, ids = _seed(db_path, ["GNSS Engineer"])
+    store.save_enrichment(ids[0], "text", 0.4, '{"domain_fit": 0.4}', "t")
+    llm = _StubLLM()
+    deps.llm = lambda: llm
+    deps.background = lambda fn: fn()
+
+    TestClient(create_app(deps), follow_redirects=False).post(
+        "/actions/rescore", data={"return_to": "search"})
+    assert llm.calls == 0
+
+
+def test_rescore_action_without_a_model_still_applies_the_rules(deps, db_path):
+    from fastapi.testclient import TestClient
+
+    from jobhunt.web.app import create_app
+
+    store, ids = _seed(db_path, ["Totally Unrelated Role"])
+    client = TestClient(create_app(deps), follow_redirects=False)
+    assert client.post("/actions/rescore",
+                       data={"return_to": "search"}).status_code == 303
+    assert store.get_job(ids[0]).role_fit == 0.0

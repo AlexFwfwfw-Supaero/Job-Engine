@@ -131,8 +131,12 @@ def list_jobs(
     employers = {e.id: e.name for e in store.list_employers()}
     for job in jobs:
         flags = " ".join(f"[{f}]" for f in job.language_flags)
+        # Show what the list is sorted by, and mark whether the model has read
+        # it — an AI-ranked row and a keyword-ranked row are not comparable.
+        read = "ai" if job.llm_fit is not None else "  "
         typer.echo(
-            f"{job.id:>4}  {job.total_score:.2f}  {job.stage.value:<11} "
+            f"{job.id:>4}  {job.rank_score or job.total_score:.2f} {read} "
+            f"{job.stage.value:<11} "
             f"{job.title}  —  {employers.get(job.employer_id, '?')}  {flags}"
         )
     if not jobs:
@@ -440,6 +444,7 @@ def enrich(
 ) -> None:
     """Read postings with the model: domain fit, seniority, language, angle."""
     store = _open_store()
+    cfg, _comp_cfg, _cities = _load_all()
     profile = _profile()
     llm = _llm()
     client = _http_client()
@@ -451,7 +456,7 @@ def enrich(
             jobs = store.list_jobs(stage=_parse_stage(stage) if stage else None)
         report = enrich_jobs(store, jobs, profile, llm, fetch_posting_text, _now(),
                              limit=limit, force=force, client=client,
-                             workers=workers)
+                             workers=workers, weights=cfg.weights)
     finally:
         close = getattr(client, "close", None)
         if close:

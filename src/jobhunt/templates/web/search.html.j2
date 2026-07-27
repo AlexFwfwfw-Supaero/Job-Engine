@@ -14,10 +14,18 @@
   </form>
   <form method="post" action="/actions/rescore">
     <input type="hidden" name="return_to" value="search">
-    <button type="submit" title="Recompute every score against config/scoring.yaml">
+    <button type="submit" title="Re-apply the rules, then have the model read every unread posting">
       Rescore all</button>
   </form>
 </div>
+{% if ai_progress.running %}
+<p class="sub"><strong>Reading {{ ai_progress.total }} posting(s) with the model.</strong>
+This runs in the background at roughly 11 seconds each, four at a time.
+Reload this page to see scores appear.</p>
+{% elif ai_progress.done %}
+<p class="sub">Model read {{ ai_progress.done }} posting(s){% if ai_progress.failed %},
+{{ ai_progress.failed }} failed{% endif %}.</p>
+{% endif %}
 {% if search_available %}
 <p class="sub">Searching polls {{ pollable|length }} employer(s):
 {{ pollable|join(', ') }}.

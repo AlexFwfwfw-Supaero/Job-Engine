@@ -133,6 +133,13 @@ def _linkedin_groups(cfg, cities) -> list[tuple[str, list]]:
     return sorted(groups.items())
 
 
+def ai_progress():
+    """Imported lazily: views must not depend on the app module at import."""
+    from jobhunt.web.app import PROGRESS
+
+    return PROGRESS
+
+
 def search_context(store: Store, deps: Deps) -> dict:
     jobs = store.list_jobs(stage=Stage.SPOTTED)
     employers = store.list_employers()
@@ -141,6 +148,7 @@ def search_context(store: Store, deps: Deps) -> dict:
     return {
         "linkedin_groups": _linkedin_groups(cfg, cities),
         "ai_available": deps.llm() is not None,
+        "ai_progress": ai_progress(),
         "tabs": TABS,
         "active": "search",
         "rows": _rows(store, jobs, deps),

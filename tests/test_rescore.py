@@ -85,3 +85,34 @@ def test_rescore_reports_nothing_for_an_empty_database(store, cfg, comp_cfg):
     report = rescore_all(store, cfg, comp_cfg, {})
     assert report.rescored == 0
     assert report.no_longer_matching == []
+
+
+def test_rescore_ranks_a_read_job_by_the_model_fit(store, cfg, comp_cfg):
+    """Ranking uses the AI fit once it exists: the model reads the posting
+    body, the matcher only ever sees the title."""
+    from jobhunt.score import ranking_score
+
+    job_id = add(store, "GNSS Engineer")
+    store.save_enrichment(job_id, "text", 0.2, '{"domain_fit": 0.2}', "t")
+    rescore_all(store, cfg, comp_cfg, {})
+    job = store.get_job(job_id)
+    assert job.role_fit == 0.5
+    assert job.rank_score == pytest.approx(
+        ranking_score(job.comp_score, job.qol_score, 0.5, 0.2, cfg.weights))
+    assert job.rank_score < job.total_score
+
+
+def test_rescore_ranks_an_unread_job_by_the_rule_fit(store, cfg, comp_cfg):
+    job_id = add(store, "GNSS Engineer")
+    rescore_all(store, cfg, comp_cfg, {})
+    job = store.get_job(job_id)
+    assert job.rank_score == pytest.approx(job.total_score)
+
+
+def test_listing_sorts_by_the_ai_fit_not_the_keyword_fit(store, cfg, comp_cfg):
+    strong_title = add(store, "GNSS Galileo Receiver Engineer", 0.9, 0.9)
+    weak_title = add(store, "Systems Engineer", 0.1, 0.1)
+    store.save_enrichment(strong_title, "t", 0.1, '{"domain_fit": 0.1}', "t")
+    store.save_enrichment(weak_title, "t", 0.95, '{"domain_fit": 0.95}', "t")
+    rescore_all(store, cfg, comp_cfg, {})
+    assert [j.id for j in store.list_jobs()] == [weak_title, strong_title]

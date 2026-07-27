@@ -97,6 +97,11 @@ Two backends, tried in this order:
 With neither, every other feature works unchanged and the AI buttons do not
 render.
 
+Lists sort by `rank_score`: the same weighted formula, with the model's fit
+substituted for the keyword fit once it has read the posting. Jobs it has not
+read keep ranking on the keyword fit and are marked unread. Sorting on the raw
+AI fit would have silently dropped the compensation and quality-of-life weights.
+
 The model's verdict is stored beside the deterministic score, never merged into
 it. Disagreements are the point: a title matching `navigation payload` scored
 0.90 on rules and 0.35 from the model, which had read far enough to see it was

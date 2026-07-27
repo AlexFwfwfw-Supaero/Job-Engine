@@ -91,3 +91,26 @@ def test_unknown_city_scores_mid_not_zero(cfg):
 def test_total_is_the_weighted_sum(cfg):
     assert total_score(1.0, 0.0, 1.0, cfg.weights) == pytest.approx(0.8)
     assert total_score(0.0, 1.0, 0.0, cfg.weights) == pytest.approx(0.2)
+
+
+def test_ranking_score_prefers_the_ai_fit_when_present():
+    """The model reads the posting body; the matcher only sees the title.
+
+    The AI fit is substituted into the same weighted formula rather than used
+    raw, so the compensation and quality-of-life weights still apply.
+    """
+    from jobhunt.score import ranking_score
+
+    weights = {"comp": 0.3, "qol": 0.2, "fit": 0.5}
+    assert ranking_score(0.5, 0.5, role_fit=0.9, llm_fit=0.2,
+                         weights=weights) == pytest.approx(
+        total_score(0.5, 0.5, 0.2, weights))
+
+
+def test_ranking_score_falls_back_to_the_rule_fit_when_unread():
+    from jobhunt.score import ranking_score
+
+    weights = {"comp": 0.3, "qol": 0.2, "fit": 0.5}
+    assert ranking_score(0.5, 0.5, role_fit=0.9, llm_fit=None,
+                         weights=weights) == pytest.approx(
+        total_score(0.5, 0.5, 0.9, weights))

@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 
 from jobhunt.llm import analyse
 from jobhunt.models import Job
+from jobhunt.score import ranking_score
 from jobhunt.store import Store
 
 
@@ -43,6 +44,7 @@ def enrich_jobs(
     force: bool = False,
     client=None,
     workers: int = DEFAULT_WORKERS,
+    weights: dict | None = None,
 ) -> EnrichReport:
     """Analyse each job, fetching its posting text first if we do not have it.
 
@@ -84,7 +86,11 @@ def enrich_jobs(
             except Exception as exc:
                 report.failed.append(f"{job.url}: {type(exc).__name__}: {exc}")
                 continue
+            rank = None
+            if weights:
+                rank = ranking_score(job.comp_score, job.qol_score,
+                                     job.role_fit, verdict.domain_fit, weights)
             store.save_enrichment(job.id, text, verdict.domain_fit,
-                                  verdict.to_json(), now)
+                                  verdict.to_json(), now, rank)
             report.analysed += 1
     return report

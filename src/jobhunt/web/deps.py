@@ -26,6 +26,10 @@ class Deps:
     # thing that degrades; every other page works exactly the same.
     llm: Callable[[], object | None] = lambda: None
     profile: Callable[[], str] = lambda: ""
+    # Injected so tests run background work inline instead of racing a thread.
+    background: Callable[[Callable[[], None]], None] = staticmethod(
+        lambda fn: __import__("threading").Thread(target=fn, daemon=True).start()
+    )
 
     @classmethod
     def from_env(cls) -> "Deps":

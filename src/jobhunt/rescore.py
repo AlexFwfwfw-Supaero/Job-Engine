@@ -16,7 +16,9 @@ from dataclasses import dataclass, field
 
 from jobhunt.config import City, CompConfig, ScoringConfig
 from jobhunt.match import evaluate
-from jobhunt.score import compensation, quality_of_life, total_score
+from jobhunt.score import (
+    compensation, quality_of_life, ranking_score, total_score,
+)
 from jobhunt.store import Store
 
 
@@ -51,6 +53,10 @@ def rescore_all(
         job.qol_score = qol
         job.total_score = total_score(breakdown.normalised, qol,
                                       match.role_fit, cfg.weights)
+        # Ranking prefers the model's fit where it exists; this keeps the two
+        # in step after a scoring change without re-reading any posting.
+        job.rank_score = ranking_score(breakdown.normalised, qol,
+                                       match.role_fit, job.llm_fit, cfg.weights)
         store.upsert_job(job)
         report.rescored += 1
         if not match.relevant:

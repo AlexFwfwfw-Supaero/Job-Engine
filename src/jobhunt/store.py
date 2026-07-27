@@ -70,7 +70,7 @@ CREATE INDEX IF NOT EXISTS idx_jobs_stage ON jobs(stage, dismissed);
 _PRESERVED_ON_REUPSERT = (
     "stage", "dismissed", "dismiss_reason", "base_cv", "angle",
     "applied_on", "first_seen", "notes", "priority",
-    "description", "llm_fit", "llm_json", "llm_checked",
+    "description", "llm_fit", "llm_json", "llm_checked", "rank_score",
 )
 
 # Columns added after the first release. Applied to existing databases by
@@ -84,6 +84,7 @@ _ADDED_COLUMNS = (
     ("llm_fit", "REAL"),
     ("llm_json", "TEXT DEFAULT ''"),
     ("llm_checked", "TEXT"),
+    ("rank_score", "REAL DEFAULT 0"),
 )
 
 VALID_LINK_STATUS = frozenset({"live", "dead", "unknown"})
@@ -175,14 +176,18 @@ class Store:
                     title=?, city=?, country=?, source=?, last_seen=?,
                     snapshot_path=COALESCE(NULLIF(?, ''), snapshot_path),
                     role_fit=?, comp_score=?, qol_score=?, total_score=?,
-                    salary_stated=?, level=?, language_flags=?, tags=?
+                    salary_stated=?, level=?, language_flags=?, tags=?,
+                    rank_score=CASE
+                        WHEN ? > 0 THEN ?
+                        WHEN llm_fit IS NULL THEN ?
+                        ELSE rank_score END
                 WHERE id = ?
                 """,
                 (j.title, j.city, j.country, j.source, j.last_seen,
                  j.snapshot_path, j.role_fit, j.comp_score, j.qol_score,
                  j.total_score, j.salary_stated, j.level,
                  json.dumps(j.language_flags), json.dumps(j.tags),
-                 existing["id"]),
+                 j.rank_score, j.rank_score, j.total_score, existing["id"]),
             )
             self.conn.commit()
             return int(existing["id"])
@@ -194,16 +199,17 @@ class Store:
                  first_seen, last_seen, stage, dismissed, dismiss_reason,
                  role_fit, comp_score, qol_score, total_score, salary_stated,
                  level, language_flags, tags, base_cv, angle, applied_on,
-                 description)
+                 description, rank_score)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?)
+                    ?, ?, ?)
             """,
             (j.employer_id, j.title, j.url, j.city, j.country, j.source,
              j.snapshot_path, j.first_seen, j.last_seen, j.stage.value,
              int(j.dismissed), j.dismiss_reason, j.role_fit, j.comp_score,
              j.qol_score, j.total_score, j.salary_stated, j.level,
              json.dumps(j.language_flags), json.dumps(j.tags), j.base_cv,
-             j.angle, j.applied_on, j.description),
+             j.angle, j.applied_on, j.description,
+             j.rank_score or j.total_score),
         )
         self.conn.commit()
         return int(cur.lastrowid)
@@ -236,14 +242,14 @@ class Store:
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         rows = self.conn.execute(
             f"SELECT * FROM jobs {where} "
-            "ORDER BY priority DESC, total_score DESC, id DESC",
+            "ORDER BY priority DESC, rank_score DESC, total_score DESC, id DESC",
             params,
         ).fetchall()
         return [_row_to_job(r) for r in rows]
 
     def save_enrichment(
         self, job_id: int, description: str, llm_fit: float | None,
-        llm_json: str, ts: str,
+        llm_json: str, ts: str, rank_score: float | None = None,
     ) -> None:
         """Store the fetched posting text and the model's reading of it.
 
@@ -251,9 +257,9 @@ class Store:
         that cost an API call, and so a scoring change never rewrites it.
         """
         self.conn.execute(
-            "UPDATE jobs SET description=?, llm_fit=?, llm_json=?, llm_checked=? "
-            "WHERE id = ?",
-            (description, llm_fit, llm_json, ts, job_id),
+            "UPDATE jobs SET description=?, llm_fit=?, llm_json=?, llm_checked=?, "
+            "rank_score=COALESCE(?, rank_score) WHERE id = ?",
+            (description, llm_fit, llm_json, ts, rank_score, job_id),
         )
         self.conn.commit()
 
@@ -368,4 +374,5 @@ def _row_to_job(row: sqlite3.Row) -> Job:
         link_status=row["link_status"], last_checked=row["last_checked"],
         description=row["description"], llm_fit=row["llm_fit"],
         llm_json=row["llm_json"], llm_checked=row["llm_checked"],
+        rank_score=row["rank_score"],
     )

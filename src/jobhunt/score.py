@@ -91,6 +91,25 @@ def quality_of_life(city: City | None, cfg: ScoringConfig) -> float:
     ) / total
 
 
+def ranking_score(
+    comp_norm: float,
+    qol: float,
+    role_fit: float,
+    llm_fit: float | None,
+    weights: dict[str, float],
+) -> float:
+    """What the lists sort by.
+
+    The model reads the posting body while the matcher only sees the title, so
+    its fit is the better signal once it exists. It is substituted into the
+    same weighted formula rather than used raw, so the compensation and
+    quality-of-life weights you set still apply. Jobs the model has not read
+    keep ranking on the rule-based fit.
+    """
+    fit = role_fit if llm_fit is None else llm_fit
+    return total_score(comp_norm, qol, fit, weights)
+
+
 def total_score(
     comp_norm: float, qol: float, role_fit: float, weights: dict[str, float]
 ) -> float:
