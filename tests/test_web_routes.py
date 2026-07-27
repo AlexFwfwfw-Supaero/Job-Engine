@@ -233,7 +233,7 @@ def test_rescore_action_updates_scores_and_redirects(client, db_path):
     assert store.get_job(job_id).role_fit == 0.0
 
 
-def test_analyse_without_an_api_key_explains_itself(client, db_path):
+def test_analyse_without_a_model_explains_itself(client, db_path, monkeypatch):
     """The AI layer is optional; its absence must read as a message, not a crash."""
     from jobhunt.models import Employer, Job
 
@@ -244,7 +244,7 @@ def test_analyse_without_an_api_key_explains_itself(client, db_path):
                                   url="https://x/1"))
     response = client.post(f"/jobs/{job_id}/analyse", data={"return_to": "search"})
     assert response.status_code == 503
-    assert "ANTHROPIC_API_KEY" in response.json()["detail"]
+    assert "claude" in response.json()["detail"]
 
 
 def test_analyse_stores_the_verdict_when_a_model_is_available(deps, db_path):
@@ -268,6 +268,8 @@ def test_analyse_stores_the_verdict_when_a_model_is_available(deps, db_path):
 
     deps.llm = lambda: FakeLLM()
     deps.profile = lambda: "GNSS graduate"
+    store.save_enrichment(job_id, "Long posting text about Galileo receiver "
+                          "signal processing in Toulouse.", None, "", "")
     client = TestClient(create_app(deps), follow_redirects=False)
     response = client.post(f"/jobs/{job_id}/analyse", data={"return_to": "search"})
 

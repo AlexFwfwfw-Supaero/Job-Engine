@@ -35,17 +35,13 @@ class Deps:
             return store
 
         def make_llm():
-            key = os.environ.get("ANTHROPIC_API_KEY", "")
-            if not key:
-                return None
-            from jobhunt.llm import DEFAULT_MODEL, AnthropicLLM
+            from jobhunt.llm import resolve_backend
 
-            try:
-                return AnthropicLLM(
-                    key, model=os.environ.get("JOBHUNT_MODEL", DEFAULT_MODEL)
-                )
-            except ImportError:
-                return None
+            return resolve_backend(
+                api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
+                model=os.environ.get("JOBHUNT_MODEL", ""),
+                prefer=os.environ.get("JOBHUNT_LLM", ""),
+            )
 
         def read_profile() -> str:
             from jobhunt.cli import _profile

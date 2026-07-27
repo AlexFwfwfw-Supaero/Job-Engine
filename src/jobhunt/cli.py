@@ -18,7 +18,8 @@ from jobhunt.models import Stage
 from jobhunt.poll import SOURCE_REGISTRY, poll_all
 from jobhunt.report import build_context, render
 from jobhunt.rescore import rescore_all
-from jobhunt.snapshot import default_client, fetch_text
+from jobhunt.posting_text import fetch_posting_text
+from jobhunt.snapshot import default_client
 from jobhunt.store import Store
 
 app = typer.Typer(help="Track GNSS/PNT/radar job opportunities.")
@@ -354,6 +355,27 @@ def due() -> None:
 
 
 PROFILE_FILES = ("positioning.md", "evidence.md")
+# Below this many characters of real content, the file is still the template.
+MIN_PROFILE_CHARS = 120
+
+
+def _substantive(markdown: str) -> str:
+    """Drop headings, bullets-without-content and italic instructions.
+
+    profile/ ships as a template of headings and guidance. Passed through
+    unchanged it looks non-empty but says nothing about the candidate, and a
+    live run showed exactly what that costs: the model refused to judge and
+    returned 0.00 for a posting the rule-based matcher scored 1.00.
+    """
+    kept = []
+    for line in (markdown or "").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith(("-", "*", ">")) and len(stripped) <= 3:
+            continue
+        kept.append(stripped)
+    return "\n".join(kept)
 
 
 def _profile() -> str:
@@ -363,40 +385,49 @@ def _profile() -> str:
     states about role families and languages, so the AI commands work before
     the profile notes are written — just less precisely.
     """
-    directory = Path(os.environ.get("JOBHUNT_PROFILE", "profile"))
-    parts = [
-        text for name in PROFILE_FILES
-        if (path := directory / name).exists()
-        and (text := path.read_text(encoding="utf-8").strip())
-    ]
-    if parts:
-        return "\n\n".join(parts)
-
     cfg = load_scoring(_config_dir() / "scoring.yaml")
     families = ", ".join(f.name.replace("_", " ") for f in cfg.role_families)
     languages = ", ".join(cfg.known_languages)
-    typer.echo(f"note: {directory}/ is empty, using a profile derived from "
-               "scoring.yaml. Fill it in for sharper judgments.")
-    return (f"Engineering graduate targeting: {families}. "
-            f"Speaks: {languages}. Open to junior roles and funded PhDs.")
+    # Always stated, so domain and language can be judged even before the
+    # profile notes exist. Those two do not depend on personal history.
+    derived = (f"Target domains: {families}.\n"
+               f"Speaks: {languages}. No German.\n"
+               "Seeking junior engineering roles and funded PhD positions.")
+
+    directory = Path(os.environ.get("JOBHUNT_PROFILE", "profile"))
+    notes = []
+    for name in PROFILE_FILES:
+        path = directory / name
+        if not path.exists():
+            continue
+        content = _substantive(path.read_text(encoding="utf-8"))
+        if len(content) >= MIN_PROFILE_CHARS:
+            notes.append(content)
+    if not notes:
+        return derived
+    return derived + "\n\nBackground notes:\n" + "\n\n".join(notes)
 
 
 def _llm():
-    """Build the model client, or explain exactly what is missing."""
-    key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not key:
-        typer.echo("ANTHROPIC_API_KEY is not set. Everything else works without "
-                   "it; only the AI commands need a key.")
-        raise typer.Exit(code=2)
-    from jobhunt.llm import AnthropicLLM
+    """Build the model client, or explain exactly what is missing.
 
-    try:
-        return AnthropicLLM(key, model=os.environ.get("JOBHUNT_MODEL",
-                                                      llm_module.DEFAULT_MODEL))
-    except ImportError:
-        typer.echo("the anthropic package is not installed. "
-                   "Run: .venv/bin/pip install anthropic")
+    Prefers the local Claude Code CLI, which bills against a Claude
+    subscription. The API key path is the fallback, since API console billing
+    is a separate account from a Claude plan.
+    """
+    backend = llm_module.resolve_backend(
+        api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
+        model=os.environ.get("JOBHUNT_MODEL", ""),
+        prefer=os.environ.get("JOBHUNT_LLM", ""),
+    )
+    if backend is None:
+        typer.echo(
+            "No model available. Either the 'claude' CLI must be on PATH and "
+            "logged in (uses your Claude plan), or set ANTHROPIC_API_KEY "
+            "(separate API billing). Everything else works without either."
+        )
         raise typer.Exit(code=2)
+    return backend
 
 
 @app.command()
@@ -417,7 +448,7 @@ def enrich(
             jobs = [job] if job else []
         else:
             jobs = store.list_jobs(stage=_parse_stage(stage) if stage else None)
-        report = enrich_jobs(store, jobs, profile, llm, fetch_text, _now(),
+        report = enrich_jobs(store, jobs, profile, llm, fetch_posting_text, _now(),
                              limit=limit, force=force, client=client)
     finally:
         close = getattr(client, "close", None)

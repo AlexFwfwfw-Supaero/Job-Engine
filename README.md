@@ -75,7 +75,39 @@ table, and reports `no data` rather than guessing. Score sorts; it never rejects
 `positioning.md`, `answers.md`, and base CVs. Nothing generates documents
 unattended.
 
+## AI reading (optional)
+
+The rule-based score decides relevance from the title, which is all most job
+boards give us. `jobs enrich` fetches the posting body instead and has a model
+read it, answering what a keyword list cannot: whether it is really navigation
+work, whether "junior" is actually junior, whether German is required or merely
+welcome, and what to lead with.
+
+    jobs enrich --stage shortlisted --limit 20
+    jobs insights 43
+    jobs rank
+
+Two backends, tried in this order:
+
+1. **The `claude` CLI**, if it is on PATH and logged in. Usage lands on your
+   Claude subscription. This is the default because it needs no extra account.
+2. **`ANTHROPIC_API_KEY`**, which bills a separate API console account.
+   `pip install -e ".[ai]"` first. Force it with `JOBHUNT_LLM=api`.
+
+With neither, every other feature works unchanged and the AI buttons do not
+render.
+
+The model's verdict is stored beside the deterministic score, never merged into
+it. Disagreements are the point: a title matching `navigation payload` scored
+0.90 on rules and 0.35 from the model, which had read far enough to see it was
+a test-automation role. Trust neither blindly; read both.
+
+Posting text is fetched once per job and cached. Workday pages render in
+JavaScript, so their text comes from the CXS JSON endpoint behind them rather
+than the HTML — see `src/jobhunt/posting_text.py`.
+
 ## Not yet built
 
-ATS polling (`jobs poll`) and the per-platform source modules. The `Source`
-protocol in `src/jobhunt/sources/base.py` is the interface they implement.
+Cornerstone (GMV, OHB) needs a session token its search API will not issue to a
+plain fetch. DLR renders its SuccessFactors results in JavaScript and its only
+no-JS feed is capped at 10 postings.

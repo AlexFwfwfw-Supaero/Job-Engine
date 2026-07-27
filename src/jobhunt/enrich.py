@@ -53,7 +53,7 @@ def enrich_jobs(
             continue
 
         try:
-            text = job.description or fetch_text(job.url, client)
+            text = job.description or fetch_text(job, client)
             verdict = analyse(job, text, profile, llm)
         except Exception as exc:
             report.failed.append(f"{job.url}: {type(exc).__name__}: {exc}")

@@ -1,0 +1,80 @@
+"""Get the full text of a posting, source by source.
+
+Fetching the stored URL is not enough. Workday's job pages render in
+JavaScript, so the HTML behind them contains navigation chrome and no
+description at all — a first live run fed the model blank pages and collected
+confident verdicts about nothing. Each source needs the route that actually
+carries the text.
+
+A posting that yields no description raises rather than returning "". Silence
+here would produce an analysis of an empty page, which is worse than a
+recorded failure.
+"""
+
+from __future__ import annotations
+
+import html as html_module
+import re
+from urllib.parse import urlparse
+
+from jobhunt.models import Job
+from jobhunt.snapshot import fetch_text
+
+# Below this, whatever came back is chrome, not a posting.
+MIN_USEFUL_CHARS = 40
+
+_TAG_RE = re.compile(r"<[^>]+>")
+_WS_RE = re.compile(r"[ \t\r\f\v]+")
+_WORKDAY_HOST_RE = re.compile(r"^(?P<tenant>[a-z0-9-]+)\.wd\d+\.myworkdayjobs\.com$")
+
+
+def strip_html(raw: str) -> str:
+    text = _TAG_RE.sub(" ", raw or "")
+    text = html_module.unescape(text)
+    text = _WS_RE.sub(" ", text)
+    return "\n".join(line.strip() for line in text.splitlines() if line.strip())
+
+
+def cxs_detail_url(url: str) -> str | None:
+    """Turn a browsable Workday job URL into its CXS JSON endpoint.
+
+    https://thales.wd3.myworkdayjobs.com/en-US/Careers/job/Roma/Title_R1
+      -> https://thales.wd3.myworkdayjobs.com/wday/cxs/thales/Careers/job/Roma/Title_R1
+    """
+    parsed = urlparse(url)
+    host = _WORKDAY_HOST_RE.match(parsed.netloc or "")
+    if not host:
+        return None
+    segments = [s for s in parsed.path.split("/") if s]
+    # An optional locale segment ("en-US") precedes the site name.
+    if segments and re.fullmatch(r"[a-z]{2}(-[A-Z]{2})?", segments[0]):
+        segments = segments[1:]
+    if not segments:
+        return None
+    site, rest = segments[0], segments[1:]
+    tail = "/".join(rest)
+    return (f"{parsed.scheme}://{parsed.netloc}/wday/cxs/"
+            f"{host.group('tenant')}/{site}/{tail}")
+
+
+def _workday_text(url: str, client) -> str:
+    response = client.get(cxs_detail_url(url))
+    response.raise_for_status()
+    description = (response.json() or {}).get("jobPostingInfo", {}).get(
+        "jobDescription", ""
+    )
+    if not isinstance(description, str):
+        raise ValueError(f"unexpected jobDescription shape for {url}")
+    return strip_html(description)
+
+
+def fetch_posting_text(job: Job, client, html_fetcher=fetch_text) -> str:
+    """The posting's full text, by whichever route that source exposes it."""
+    if job.source == "workday" and cxs_detail_url(job.url):
+        text = _workday_text(job.url, client)
+    else:
+        text = strip_html(html_fetcher(job.url, client))
+
+    if len(text.strip()) < MIN_USEFUL_CHARS:
+        raise ValueError(f"no description found at {job.url}")
+    return text

@@ -15,6 +15,7 @@ from jobhunt.models import Employer, Job, Stage
 from jobhunt.poll import SOURCE_REGISTRY, poll_all
 from jobhunt.rescore import rescore_all
 from jobhunt.score import compensation, quality_of_life, total_score
+from jobhunt.posting_text import fetch_posting_text
 from jobhunt.snapshot import fetch_text, save_snapshot
 from jobhunt.sources.manual import posting_from_url
 from jobhunt.store import Store
@@ -209,8 +210,9 @@ def create_app(deps: Deps) -> FastAPI:
         if llm is None:
             raise HTTPException(
                 status_code=503,
-                detail="ANTHROPIC_API_KEY is not set. Everything else in the "
-                       "tracker works without it.",
+                detail="No model available. Install and log in to the claude "
+                       "CLI (uses your Claude plan) or set ANTHROPIC_API_KEY. "
+                       "Everything else in the tracker works without either.",
             )
         store = deps.store_factory()
         client = deps.http_client()
@@ -218,7 +220,7 @@ def create_app(deps: Deps) -> FastAPI:
             job = store.get_job(job_id)
             if job is None:
                 raise HTTPException(status_code=404, detail=f"no job {job_id}")
-            enrich_jobs(store, [job], deps.profile(), llm, fetch_text, _now(),
+            enrich_jobs(store, [job], deps.profile(), llm, fetch_posting_text, _now(),
                         force=True, client=client)
         finally:
             close = getattr(client, "close", None)

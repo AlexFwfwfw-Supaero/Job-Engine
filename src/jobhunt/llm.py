@@ -76,11 +76,24 @@ def parse_verdict(text: str) -> Verdict:
 
 
 def build_prompt(job: Job, posting_text: str, profile: str) -> str:
+    """Prompt for one posting.
+
+    The candidate section may be thin — the profile notes start as a template
+    and get filled in over time. Domain and seniority must still be judged
+    from the posting alone, because they do not depend on the candidate's
+    history. A first live run got domain_fit 0.00 on a perfect match because
+    the model treated a sparse profile as grounds to refuse everything.
+    """
     body = (posting_text or "")[:MAX_POSTING_CHARS]
     return f"""You are screening job postings for one specific candidate.
 
 CANDIDATE
 {profile}
+
+If the candidate section above is sparse, still judge relevance, domain_fit,
+seniority, contract and language from the posting itself — those do not depend
+on the candidate's history. Never refuse, and never ask for more information.
+Only "angle" needs candidate detail; keep it short and generic when you lack it.
 
 POSTING
 Title: {job.title}
@@ -131,6 +144,124 @@ def analyse(job: Job, posting_text: str, profile: str, llm) -> Verdict:
     except ValueError:
         retry = prompt + "\n\nYour previous reply was not valid JSON. Reply with the JSON object only."
         return parse_verdict(llm.complete(retry))
+
+
+CLI_DEFAULT_MODEL = "haiku"
+
+
+def resolve_backend(
+    api_key: str = "",
+    model: str = "",
+    prefer: str = "",
+    which=None,
+    build_anthropic=None,
+):
+    """Pick a model backend, or return None if none is available.
+
+    The Claude Code CLI comes first. It authenticates with the same login as
+    the interactive tool, so usage lands on a Claude plan; an API key is a
+    separate account with separate billing, which is a surprise nobody wants.
+    Set JOBHUNT_LLM=api to force the API path.
+    """
+    if which is None:
+        from shutil import which as which
+
+    def make_api():
+        if not api_key:
+            return None
+        builder = build_anthropic or (lambda k, m: AnthropicLLM(k, model=m))
+        try:
+            return builder(api_key, model or DEFAULT_MODEL)
+        except ImportError:
+            return None
+
+    def make_cli():
+        if not which("claude"):
+            return None
+        return ClaudeCodeLLM(model=model or CLI_DEFAULT_MODEL)
+
+    order = (make_api, make_cli) if prefer == "api" else (make_cli, make_api)
+    for factory in order:
+        backend = factory()
+        if backend is not None:
+            return backend
+    return None
+
+
+class ClaudeCodeLLM:
+    """Run the model through the local Claude Code CLI in headless mode.
+
+    This is the backend to use when you have a Claude subscription but no API
+    console billing: `claude -p` authenticates with the same login as the
+    interactive tool, so the usage lands on the plan rather than on a separate
+    API account.
+
+    The prompt goes on stdin because postings run to thousands of characters
+    and argv is the wrong place for that. Tools are denied outright: screening
+    a job posting needs no filesystem or shell access, and a screening loop
+    that can edit files is a bad idea however well it behaves.
+    """
+
+    DEFAULT_TIMEOUT = 180
+
+    def __init__(
+        self,
+        model: str = "haiku",
+        binary: str = "claude",
+        timeout: int = DEFAULT_TIMEOUT,
+        runner=None,
+        cwd: str | None = None,
+    ) -> None:
+        self.model = model
+        self.binary = binary
+        self.timeout = timeout
+        self.cwd = cwd
+        self._runner = runner
+
+    # Run headless in a scratch directory. Started inside the project, the CLI
+    # loads the repo's own context: a live run had it inspecting git status and
+    # the profile/ files instead of judging the posting in front of it.
+    SYSTEM = (
+        "You are a text-only classifier with no tools and no repository. "
+        "Everything you need is in the user message. Never ask for more "
+        "information and never mention files. Reply with the requested JSON "
+        "object only."
+    )
+
+    def _scratch(self) -> str:
+        if self.cwd is None:
+            import tempfile
+
+            self.cwd = tempfile.mkdtemp(prefix="jobhunt-llm-")
+        return self.cwd
+
+    def command(self) -> list[str]:
+        return [
+            self.binary, "-p",
+            "--model", self.model,
+            "--output-format", "text",
+            "--disallowed-tools", "Bash Edit Write Read WebFetch WebSearch",
+            "--append-system-prompt", self.SYSTEM,
+        ]
+
+    def complete(self, prompt: str) -> str:
+        runner = self._runner
+        if runner is None:
+            import subprocess
+
+            def runner(cmd, **kwargs):
+                return subprocess.run(cmd, **kwargs)
+
+        result = runner(
+            self.command(), input=prompt, capture_output=True, text=True,
+            timeout=self.timeout, cwd=self._scratch(),
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"claude exited {result.returncode}: "
+                f"{(result.stderr or result.stdout).strip()[:300]}"
+            )
+        return result.stdout
 
 
 class AnthropicLLM:

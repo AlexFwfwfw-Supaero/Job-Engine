@@ -122,3 +122,168 @@ def test_rank_prompt_lists_every_job_with_its_identifier():
 def test_rank_prompt_asks_for_an_ordering_with_reasons():
     prompt = rank_prompt([job(id=1)], PROFILE)
     assert "order" in prompt.lower()
+
+
+# --- Claude Code CLI backend -------------------------------------------
+
+def test_claude_code_command_uses_the_chosen_model_and_reads_stdin():
+    """The prompt goes on stdin, not argv: postings are long and argv is not
+    the place for 6000 characters of text."""
+    from jobhunt.llm import ClaudeCodeLLM
+
+    cmd = ClaudeCodeLLM(model="haiku").command()
+    assert cmd[0] == "claude"
+    assert "-p" in cmd
+    assert "--model" in cmd and cmd[cmd.index("--model") + 1] == "haiku"
+    assert "--output-format" in cmd
+    assert not any("POSTING" in part for part in cmd)
+
+
+def test_claude_code_denies_tools():
+    """Screening a posting needs no filesystem or shell access."""
+    from jobhunt.llm import ClaudeCodeLLM
+
+    cmd = ClaudeCodeLLM().command()
+    assert "--disallowed-tools" in cmd
+
+
+def test_claude_code_complete_returns_stdout():
+    from jobhunt.llm import ClaudeCodeLLM
+
+    calls = {}
+
+    def fake_run(cmd, **kwargs):
+        calls["cmd"] = cmd
+        calls["input"] = kwargs.get("input")
+
+        class Result:
+            returncode = 0
+            stdout = '```json\n{"relevant": true, "domain_fit": 0.7}\n```'
+            stderr = ""
+
+        return Result()
+
+    llm = ClaudeCodeLLM(runner=fake_run)
+    out = llm.complete("judge this posting")
+    assert "domain_fit" in out
+    assert calls["input"] == "judge this posting"
+
+
+def test_claude_code_raises_a_readable_error_on_failure():
+    from jobhunt.llm import ClaudeCodeLLM
+
+    def failing_run(cmd, **kwargs):
+        class Result:
+            returncode = 1
+            stdout = ""
+            stderr = "not logged in"
+
+        return Result()
+
+    llm = ClaudeCodeLLM(runner=failing_run)
+    with pytest.raises(RuntimeError, match="not logged in"):
+        llm.complete("anything")
+
+
+def test_claude_code_output_parses_into_a_verdict():
+    """End to end: fenced JSON from the CLI must survive parse_verdict."""
+    from jobhunt.llm import ClaudeCodeLLM
+
+    def fake_run(cmd, **kwargs):
+        class Result:
+            returncode = 0
+            stdout = "Here you go:\n```json\n" + verdict_json() + "\n```\n"
+            stderr = ""
+
+        return Result()
+
+    v = analyse(job(), "text", PROFILE, ClaudeCodeLLM(runner=fake_run))
+    assert v.domain_fit == 0.8
+    assert v.seniority == "junior"
+
+
+# --- backend resolution ------------------------------------------------
+
+def test_resolve_prefers_the_claude_cli_over_an_api_key():
+    """API console billing is a separate account from a Claude plan, so the
+    subscription-backed path is the default when both are available."""
+    from jobhunt.llm import ClaudeCodeLLM, resolve_backend
+
+    backend = resolve_backend(api_key="sk-test", model="",
+                              which=lambda _: "/usr/bin/claude")
+    assert isinstance(backend, ClaudeCodeLLM)
+
+
+def test_resolve_falls_back_to_the_api_key_when_no_cli_is_installed(monkeypatch):
+    from jobhunt.llm import resolve_backend
+
+    built = {}
+
+    def fake_anthropic(key, model):
+        built["key"] = key
+        return "anthropic-client"
+
+    backend = resolve_backend(api_key="sk-test", model="", which=lambda _: None,
+                              build_anthropic=fake_anthropic)
+    assert backend == "anthropic-client"
+    assert built["key"] == "sk-test"
+
+
+def test_resolve_returns_none_when_nothing_is_configured():
+    from jobhunt.llm import resolve_backend
+
+    assert resolve_backend(api_key="", model="", which=lambda _: None) is None
+
+
+def test_resolve_honours_an_explicit_backend_choice():
+    from jobhunt.llm import resolve_backend
+
+    assert resolve_backend(api_key="sk-test", model="", prefer="api",
+                           which=lambda _: "/usr/bin/claude",
+                           build_anthropic=lambda k, m: "anthropic") == "anthropic"
+
+
+def test_resolve_uses_the_cli_default_model_when_none_is_given():
+    from jobhunt.llm import resolve_backend
+
+    backend = resolve_backend(api_key="", model="", which=lambda _: "/bin/claude")
+    assert backend.model == "haiku"
+
+
+def test_claude_code_runs_outside_the_project_directory():
+    """Started in the repo, the CLI loads the project's own context: a live run
+    had it inspecting git status instead of judging the posting."""
+    from jobhunt.llm import ClaudeCodeLLM
+
+    seen = {}
+
+    def fake_run(cmd, **kwargs):
+        seen["cwd"] = kwargs.get("cwd")
+
+        class Result:
+            returncode = 0
+            stdout = '{"relevant": true, "domain_fit": 0.5}'
+            stderr = ""
+
+        return Result()
+
+    ClaudeCodeLLM(runner=fake_run).complete("judge this")
+    assert seen["cwd"]
+    assert "job-searching" not in seen["cwd"]
+
+
+def test_claude_code_tells_the_model_it_has_no_tools():
+    from jobhunt.llm import ClaudeCodeLLM
+
+    cmd = ClaudeCodeLLM().command()
+    system = cmd[cmd.index("--append-system-prompt") + 1]
+    assert "no tools" in system
+    assert "JSON" in system
+
+
+def test_prompt_tells_the_model_not_to_refuse_on_a_sparse_profile():
+    """Live regression: a thin profile made the model return domain_fit 0.00
+    for a posting the rule-based matcher scored 1.00."""
+    prompt = build_prompt(job(), "posting body", "Target domains: gnss.")
+    assert "Never refuse" in prompt
+    assert "do not depend" in prompt

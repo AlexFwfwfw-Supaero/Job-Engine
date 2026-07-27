@@ -48,8 +48,8 @@ class FakeFetcher:
         self.text = text
         self.urls = []
 
-    def __call__(self, url, client=None):
-        self.urls.append(url)
+    def __call__(self, job, client=None):
+        self.urls.append(job.url)
         return self.text
 
 
@@ -99,8 +99,8 @@ def test_enrich_records_a_failure_without_stopping_the_run(store):
     add(store, title="Radar Engineer", url="https://x/2")
 
     class Flaky(FakeFetcher):
-        def __call__(self, url, client=None):
-            if url == "https://x/1":
+        def __call__(self, job, client=None):
+            if job.url == "https://x/1":
                 raise RuntimeError("404")
             return self.text
 
