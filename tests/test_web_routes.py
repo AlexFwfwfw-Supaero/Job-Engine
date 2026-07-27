@@ -453,3 +453,110 @@ def test_advice_action_can_be_limited_to_the_shortlist(deps, db_path):
     store = Store(db_path)
     assert store.latest_briefing().job_count == 1
     assert store.latest_briefing().scope == "shortlisted"
+
+
+# --- manual entry: title and pasted text -------------------------------
+
+def test_a_manual_entry_can_carry_its_own_title(client, db_path):
+    """The fetched page gives a title only when the site is fetchable and
+    sensibly structured. For a posting you paste by hand it usually is not."""
+    client.post("/jobs", data={
+        "url": "https://example.com/job/7", "employer": "Septentrio",
+        "title": "Ingénieur Navigation GNSS", "description": "",
+        "city": "", "country": "", "level": "junior", "tags": "",
+    })
+    store = Store(db_path)
+    assert store.list_jobs()[0].title == "Ingénieur Navigation GNSS"
+
+
+def test_a_pasted_description_is_stored_for_the_model_to_read(deps, db_path):
+    """Without this the model has nothing to read: it re-fetches the URL, and
+    the postings you enter by hand are exactly the ones that cannot be
+    fetched."""
+    from fastapi.testclient import TestClient
+
+    from jobhunt.web.app import create_app
+
+    body = ("We are looking for a GNSS receiver engineer to work on Galileo "
+            "signal processing, integrity monitoring and RTK positioning.")
+    client = TestClient(create_app(deps), follow_redirects=False)
+    client.post("/jobs", data={
+        "url": "https://example.com/job/8", "employer": "Septentrio",
+        "title": "GNSS Receiver Engineer", "description": body,
+        "city": "", "country": "", "level": "junior", "tags": "",
+    })
+
+    job = Store(db_path).list_jobs()[0]
+    assert "integrity monitoring" in job.description
+
+
+def test_a_pasted_description_is_what_gets_scored(deps, db_path):
+    """The fake client serves an unrelated page. If the pasted text were
+    ignored, the score would come from that page instead."""
+    from fastapi.testclient import TestClient
+
+    from jobhunt.web.app import create_app
+
+    client = TestClient(create_app(deps), follow_redirects=False)
+    client.post("/jobs", data={
+        "url": "https://example.com/job/9", "employer": "Septentrio",
+        "title": "Systems Engineer", "description": "Galileo GNSS work.",
+        "city": "", "country": "", "level": "junior", "tags": "",
+    })
+    assert Store(db_path).list_jobs()[0].role_fit > 0
+
+
+def test_a_dead_url_does_not_lose_a_hand_entered_posting(deps, db_path):
+    """A LinkedIn posting cannot be fetched at all. Losing the entry because
+    the snapshot failed would defeat the point of manual entry."""
+    from fastapi.testclient import TestClient
+
+    from jobhunt.web.app import create_app
+
+    deps.http_client = DeadClient
+    client = TestClient(create_app(deps), follow_redirects=False)
+    response = client.post("/jobs", data={
+        "url": "https://www.linkedin.com/jobs/view/123", "employer": "Expleo",
+        "title": "Ingénieur GNSS", "description": "Galileo receiver work.",
+        "city": "Toulouse", "country": "FR", "level": "junior", "tags": "",
+    })
+
+    assert response.status_code == 303
+    jobs = Store(db_path).list_jobs()
+    assert jobs[0].title == "Ingénieur GNSS"
+    assert jobs[0].snapshot_path == ""
+
+
+def test_a_dead_url_with_nothing_pasted_still_fails_loudly(deps):
+    """Silently storing an empty job would be worse than an error."""
+    import pytest as _pytest
+    from fastapi.testclient import TestClient
+
+    from jobhunt.web.app import create_app
+
+    deps.http_client = DeadClient
+    client = TestClient(create_app(deps), follow_redirects=False)
+    with _pytest.raises(ConnectionError):
+        client.post("/jobs", data={
+            "url": "https://www.linkedin.com/jobs/view/123",
+            "employer": "Expleo", "title": "", "description": "",
+            "city": "", "country": "", "level": "junior", "tags": "",
+        })
+
+
+def test_a_fetched_page_is_stored_as_text_not_markup(deps, db_path):
+    """The description column feeds the model. Handing it raw HTML wastes the
+    budget on tags."""
+    from fastapi.testclient import TestClient
+
+    from jobhunt.web.app import create_app
+
+    client = TestClient(create_app(deps), follow_redirects=False)
+    client.post("/jobs", data={
+        "url": "https://example.com/job/10", "employer": "Septentrio",
+        "title": "", "description": "",
+        "city": "", "country": "", "level": "junior", "tags": "",
+    })
+    job = Store(db_path).list_jobs()[0]
+    assert "<h1>" not in job.description
+    assert "Galileo receiver work" in job.description

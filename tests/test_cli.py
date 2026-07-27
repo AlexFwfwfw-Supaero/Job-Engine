@@ -195,3 +195,31 @@ def test_report_writes_the_dashboard(env, fake_http):
     dashboard = env / "dashboard.html"
     assert dashboard.exists()
     assert "GNSS Engineer" in dashboard.read_text(encoding="utf-8")
+
+
+def test_add_takes_a_pasted_posting_from_a_file(env, fake_http):
+    """The CLI counterpart of the paste box. A posting runs to thousands of
+    characters, which is not something to put on a command line."""
+    body = env / "posting.txt"
+    body.write_text("Galileo receiver work: integrity monitoring and RTK.")
+
+    result = runner.invoke(app, [
+        "add", "https://example.com/job/9", "-e", "Rohde & Schwarz",
+        "--title", "Ingenieur GNSS", "--description-file", str(body),
+    ])
+    assert result.exit_code == 0, result.output
+
+    store = Store(env / "jobs.db")
+    job = store.list_jobs()[0]
+    assert job.title == "Ingenieur GNSS"
+    assert "integrity monitoring" in job.description
+    store.close()
+
+
+def test_add_stores_the_fetched_text_so_the_model_need_not_refetch(env, fake_http):
+    runner.invoke(app, ["add", "https://example.com/job/10", "-e", "Rohde & Schwarz"])
+    store = Store(env / "jobs.db")
+    job = store.list_jobs()[0]
+    assert "Galileo receiver work" in job.description
+    assert "<p>" not in job.description
+    store.close()

@@ -15,7 +15,7 @@ from jobhunt.models import Employer, Job, Stage
 from jobhunt.poll import SOURCE_REGISTRY, poll_all
 from jobhunt.rescore import rescore_all
 from jobhunt.score import compensation, quality_of_life, total_score
-from jobhunt.posting_text import fetch_posting_text
+from jobhunt.posting_text import fetch_posting_text, strip_html
 from jobhunt.snapshot import fetch_text, save_snapshot
 from jobhunt.sources.manual import posting_from_url
 from jobhunt.store import Store
@@ -136,8 +136,21 @@ def add_job_from_url(
     tags: str = "",
     title: str | None = None,
     salary: float | None = None,
+    description: str = "",
 ) -> int:
-    """Fetch, snapshot, score and store a posting. Shared by the web UI and CLI."""
+    """Fetch, snapshot, score and store a posting. Shared by the web UI and CLI.
+
+    Manual entry exists for the postings the pollers cannot reach — LinkedIn,
+    PDF adverts, a professor's page, a JavaScript careers site. Those are
+    exactly the URLs a fetch either fails on or returns chrome for, so the
+    title and the body can be given directly:
+
+    * a pasted description is what gets scored and what the model later reads,
+      instead of re-fetching a page that did not work the first time;
+    * a fetch that fails is fatal only when nothing was pasted. Losing a
+      hand-entered posting because its site refused a robot would defeat the
+      purpose of having manual entry at all.
+    """
     cfg = load_scoring(deps.config_dir / "scoring.yaml")
     comp_cfg = load_comp(deps.config_dir / "comp.yaml")
     cities = load_cities(deps.config_dir / "cities.yaml")
@@ -152,19 +165,30 @@ def add_job_from_url(
         country = country or known.country
         city = city or known.city
 
+    pasted = (description or "").strip()
     client = deps.http_client()
     try:
         text = fetch_text(url, client)
+    except Exception:
+        # Only survivable because the operator supplied the posting already.
+        if not pasted:
+            raise
+        text = ""
     finally:
         close = getattr(client, "close", None)
         if close:
             close()
 
-    posting = posting_from_url(url, text, title=title)
+    posting = posting_from_url(url, text, title=title or None)
     postings_dir = Path(os.environ.get("JOBHUNT_POSTINGS", "data/postings"))
-    snapshot_path = save_snapshot(postings_dir, url, text)
+    snapshot_path = save_snapshot(postings_dir, url, text) if text else ""
 
-    match = evaluate(posting.title, posting.description, country, cfg)
+    # What the model will read later. Pasted text wins: the page behind a
+    # hand-entered URL is usually chrome or a login wall. Fetched markup is
+    # stripped, because the description column is a text budget, not markup.
+    body = pasted or strip_html(text)
+
+    match = evaluate(posting.title, body, country, cfg)
     city_entry = cities.get(city.lower()) if city else None
     breakdown = compensation(country, level, salary, comp_cfg, city_entry, cfg)
     qol = quality_of_life(city_entry, cfg)
@@ -178,6 +202,7 @@ def add_job_from_url(
         comp_score=breakdown.normalised, qol_score=qol, total_score=total,
         salary_stated=salary, level=level, language_flags=match.language_flags,
         tags=[t.strip() for t in tags.split(",") if t.strip()],
+        description=body,
     ))
 
 
@@ -207,10 +232,13 @@ def create_app(deps: Deps) -> FastAPI:
         country: str = Form(""),
         level: str = Form("junior"),
         tags: str = Form(""),
+        title: str = Form(""),
+        description: str = Form(""),
     ) -> RedirectResponse:
         store = deps.store_factory()
         try:
-            add_job_from_url(store, deps, url, employer, city, country, level, tags)
+            add_job_from_url(store, deps, url, employer, city, country, level,
+                             tags, title=title, description=description)
         finally:
             store.close()
         return RedirectResponse("/search", status_code=SEE_OTHER)

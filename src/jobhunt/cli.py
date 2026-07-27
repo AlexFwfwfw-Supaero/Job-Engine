@@ -93,8 +93,16 @@ def add(
     salary: Optional[float] = typer.Option(None, "--salary"),
     tags: str = typer.Option("", "--tags", help="comma-separated"),
     title: Optional[str] = typer.Option(None, "--title"),
+    description_file: Optional[str] = typer.Option(
+        None, "--description-file",
+        help="File holding the posting text. Use for postings that cannot be "
+             "fetched — LinkedIn, PDFs, JavaScript career sites."),
 ) -> None:
-    """Fetch a posting URL, snapshot it, score it, and store it."""
+    """Fetch a posting URL, snapshot it, score it, and store it.
+
+    With --description-file the pasted text is what gets scored and what the
+    model reads later, and the entry survives a URL that cannot be fetched.
+    """
     from jobhunt.web.app import add_job_from_url
     from jobhunt.web.deps import Deps
 
@@ -106,8 +114,10 @@ def add(
     if store.find_employer_by_name(employer) is None:
         typer.echo(f"created employer: {employer}")
 
+    body = Path(description_file).read_text() if description_file else ""
     job_id = add_job_from_url(
-        store, deps, url, employer, city, country, level, tags, title, salary
+        store, deps, url, employer, city, country, level, tags, title, salary,
+        description=body,
     )
     job = store.get_job(job_id)
     if job.role_fit == 0.0:

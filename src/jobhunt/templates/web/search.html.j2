@@ -75,9 +75,18 @@ search per firm per domain, last 7 days, newest first.</p>
 {% endif %}
 
 <h2>Add a job</h2>
-<form method="post" action="/jobs" class="bar">
+<p class="sub">For anything the pollers cannot reach — LinkedIn, a PDF advert,
+a professor's page. Paste the posting text below: it is what gets scored and
+what the model reads later. Without it the tracker has to re-fetch the URL,
+which is exactly what fails on these sites. With text pasted, the entry
+survives even if the URL cannot be fetched at all.</p>
+<form method="post" action="/jobs">
+<div class="bar">
   <div><label for="url">Posting URL</label>
     <input id="url" name="url" size="42" required></div>
+  <div><label for="title">Title</label>
+    <input id="title" name="title" size="30"
+           placeholder="left blank: taken from the page"></div>
   <div><label for="employer">Employer</label>
     <input id="employer" name="employer" list="employers" required>
     <datalist id="employers">
@@ -90,7 +99,11 @@ search per firm per domain, last 7 days, newest first.</p>
       <option value="junior">junior</option><option value="phd">phd</option>
     </select></div>
   <div><label for="tags">Tags</label><input id="tags" name="tags" size="12"></div>
-  <button type="submit">Add</button>
+</div>
+<label for="description">Posting text <span class="sub">(paste it — scored and
+  read by the model; leave blank to fetch the URL instead)</span></label>
+<textarea id="description" name="description" rows="8"></textarea>
+<p><button type="submit">Add</button></p>
 </form>
 
 <h2>Spotted <span class="sub">({{ rows|length }})</span></h2>
