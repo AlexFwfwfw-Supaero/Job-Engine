@@ -4,11 +4,13 @@
 employers:
   # --- industry: GNSS / PNT ---
   - {name: u-blox, country: CH, city: Thalwil, ats: manual, tags: [gnss, industry],
-     careers_url: "https://www.u-blox.com/en/careers"}
+     careers_url: "https://www.u-blox.com/en/job-openings",
+     notes: "Custom board, no ATS fingerprint in the markup. Manual."}
   - {name: Septentrio, country: BE, city: Leuven, ats: manual, tags: [gnss, industry],
      careers_url: "https://www.septentrio.com/en/careers"}
   - {name: Rohde & Schwarz, country: DE, city: Munich, ats: manual, tags: [gnss, radar, industry],
-     careers_url: "https://www.rohde-schwarz.com/careers"}
+     careers_url: "https://www.rohde-schwarz.com/career/jobs/career-jobboard_251573.html",
+     notes: "Custom job board with its own filter syntax. Manual."}
   - {name: Trimble, country: DE, city: Raunheim, ats: manual, tags: [gnss, industry],
      careers_url: "https://careers.trimble.com/"}
   - {name: Hexagon, country: CH, city: Heerbrugg, ats: manual, tags: [gnss, industry],
@@ -47,10 +49,44 @@ employers:
      careers_url: "https://gmv.csod.com/ux/ats/careersite/4/home?c=gmv&lang=en-US",
      notes: "Cornerstone OnDemand (gmv.csod.com, careerSiteId 4), confirmed
              2026-07-27. Pollable once a cornerstone source module exists."}
+  - {name: Telespazio Belgium, country: BE, city: Noordwijk, ats: breezy,
+     ats_endpoint: "https://telespazio-be.breezy.hr/json",
+     poll_enabled: true, tags: [gnss, space, esa-contractor],
+     careers_url: "https://telespazio-be.breezy.hr/",
+     notes: "CONFIRMED 2026-07-27 — Breezy HR, whole board as JSON, no auth or
+             pagination. Mostly ESA/ESTEC and EGNOS contractor posts at Noordwijk
+             and Toulouse, which is why the country here is BE but the jobs are not."}
+  - {name: Telespazio France, country: FR, city: Toulouse, ats: manual, tags: [gnss, space],
+     careers_url: "https://careers.telespazio.fr/jobs",
+     notes: "Teamtailor. Identified 2026-07-27; its public API needs a per-company
+             token, so manual until someone obtains one."}
   - {name: Telespazio, country: IT, city: Rome, ats: manual, tags: [gnss, space],
      careers_url: "https://www.telespazio.com/en/careers"}
   - {name: Leonardo, country: IT, city: Rome, ats: manual, tags: [radar, defense],
      careers_url: "https://www.leonardo.com/en/careers"}
+
+  - {name: Beyond Gravity, country: CH, city: Zurich, ats: successfactors,
+     ats_endpoint: "https://careers.beyondgravity.com/BeyondGravity",
+     poll_enabled: true, tags: [space, industry],
+     careers_url: "https://careers.beyondgravity.com/BeyondGravity/search/",
+     notes: "CONFIRMED 2026-07-27 — SuccessFactors, same parser as ESA, but the
+             endpoint needs the /BeyondGravity site segment: the bare host serves
+             a page with no job tiles rather than redirecting."}
+  - {name: Isar Aerospace, country: DE, city: Ottobrunn, ats: greenhouse,
+     ats_endpoint: "isaraerospace", poll_enabled: true, tags: [space, newspace],
+     careers_url: "https://isaraerospace.com/career",
+     notes: "CONFIRMED 2026-07-27 — Greenhouse board token 'isaraerospace', 94 jobs."}
+  - {name: Rocket Factory Augsburg, country: DE, city: Augsburg, ats: greenhouse,
+     ats_endpoint: "rocketfactoryaugsburgag", poll_enabled: true,
+     tags: [space, newspace],
+     careers_url: "https://job-boards.eu.greenhouse.io/rocketfactoryaugsburgag",
+     notes: "CONFIRMED 2026-07-27 — Greenhouse, 52 jobs. Some posts are in the UK
+             (Shetland launch site); the matcher excludes those by country."}
+  - {name: OHB, country: DE, city: Bremen, ats: manual, tags: [space, industry],
+     careers_url: "https://career-ohb.csod.com/ux/ats/careersite/4/home?c=career-ohb&lang=en-GB",
+     notes: "Cornerstone OnDemand, same platform as GMV. Its search API returns
+             401 without a session token, so this needs browser-session work
+             rather than a plain fetch. Manual for now."}
 
   # --- aggregators ---
   - {name: EURAXESS, country: "", city: "", ats: euraxess, poll_enabled: true,
@@ -63,16 +99,27 @@ employers:
              decided locally by the matcher."}
 
   # --- agencies and research ---
-  - {name: ESA, country: NL, city: Noordwijk, ats: successfactors, tags: [space, agency, egt],
+  - {name: ESA, country: NL, city: Noordwijk, ats: successfactors,
+     ats_endpoint: "https://jobs.esa.int", poll_enabled: true,
+     tags: [space, agency, egt],
      careers_url: "https://jobs.esa.int/",
-     notes: "CONFIRMED 2026-07-26 — SAP SuccessFactors. Endpoint not yet mapped;
-             SuccessFactors usually needs HTML parsing rather than a JSON API."}
-  - {name: DLR, country: DE, city: Oberpfaffenhofen, ats: manual, tags: [gnss, research, phd],
-     careers_url: "https://www.dlr.de/en/careers"}
+     notes: "CONFIRMED 2026-07-27 — SAP SuccessFactors, ~51 open posts. No JSON
+             API; the search results page is parsed instead."}
+  - {name: DLR, country: DE, city: Oberpfaffenhofen, ats: manual,
+     tags: [gnss, research, phd],
+     careers_url: "https://jobs.dlr.de/go/Alle-Stellen/9261201/",
+     notes: "SuccessFactors, but unlike ESA and Beyond Gravity this tenant renders
+             its results in JavaScript — /search/ and /go/ both return zero job
+             tiles to a plain fetch. The only no-JS view is the category RSS at
+             /services/rss/category/?catid=9261201, which is capped at the 10
+             newest postings, too narrow to poll honestly. Manual until either a
+             headless browser or a fuller feed is available. HIGH PRIORITY: the
+             Institute of Communications and Navigation is here."}
   - {name: Fraunhofer IIS, country: DE, city: Nuremberg, ats: manual, tags: [gnss, research, phd],
-     careers_url: "https://www.iis.fraunhofer.de/en/jobs.html"}
+     careers_url: "https://www.iis.fraunhofer.de/en/jobs/stellen.html"}
   - {name: CNES, country: FR, city: Toulouse, ats: manual, tags: [space, agency],
-     careers_url: "https://recrutement.cnes.fr/"}
+     careers_url: "https://recrutement.cnes.fr/en/annonces",
+     notes: "Cegid Talentsoft. Identified 2026-07-27, endpoint not mapped."}
   - {name: ONERA, country: FR, city: Toulouse, ats: manual, tags: [radar, research, phd],
      careers_url: "https://www.onera.fr/en/jobs"}
 

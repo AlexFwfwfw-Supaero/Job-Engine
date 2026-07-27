@@ -7,7 +7,7 @@ from jobhunt.config import City, CompConfig, ScoringConfig
 from jobhunt.match import evaluate
 from jobhunt.models import Employer, Job
 from jobhunt.score import compensation, quality_of_life, total_score
-from jobhunt.sources import euraxess, workday
+from jobhunt.sources import breezy, euraxess, greenhouse, successfactors, workday
 from jobhunt.sources.base import RawPosting
 from jobhunt.store import Store
 
@@ -15,7 +15,14 @@ from jobhunt.store import Store
 SOURCE_REGISTRY: dict[str, Callable] = {
     workday.NAME: workday.fetch,
     euraxess.NAME: euraxess.fetch,
+    successfactors.NAME: successfactors.fetch,
+    breezy.NAME: breezy.fetch,
+    greenhouse.NAME: greenhouse.fetch,
 }
+
+# Sources that return their whole board in one unpaginated response and so
+# take no max_pages; passing one would raise TypeError.
+UNPAGINATED = frozenset({breezy.NAME, greenhouse.NAME})
 
 
 def source_kwargs(ats: str, cfg: ScoringConfig, common: dict) -> dict:
@@ -28,6 +35,8 @@ def source_kwargs(ats: str, cfg: ScoringConfig, common: dict) -> dict:
     kwargs = dict(common)
     if ats == workday.NAME:
         kwargs["search_terms"] = list(cfg.poll_search_terms)
+    if ats in UNPAGINATED:
+        kwargs.pop("max_pages", None)
     return kwargs
 
 

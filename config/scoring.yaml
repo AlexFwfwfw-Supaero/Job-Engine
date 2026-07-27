@@ -29,6 +29,7 @@ staleness:
 poll_search_terms:
   - gnss
   - galileo
+  - egnos
   - navigation
   - pnt
   - radar
@@ -41,7 +42,8 @@ poll_search_terms:
 role_families:
   - name: gnss
     weight: 1.0
-    keywords: ["gnss", "gps", "galileo", "receiver", "signal processing",
+    keywords: ["gnss", "gps", "galileo", "egnos", "sbas", "waas", "glonass",
+               "beidou", "receiver", "signal processing",
                "correlator", "acquisition and tracking", "rtk", "ppp"]
   - name: pnt
     weight: 1.0

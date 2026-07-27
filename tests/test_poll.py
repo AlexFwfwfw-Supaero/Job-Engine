@@ -212,3 +212,34 @@ def test_report_totals_add_up():
     assert sum(r.seen for r in reports) == 15
     assert sum(r.stored for r in reports) == 4
     assert sum(r.new for r in reports) == 3
+
+
+def test_source_kwargs_drops_max_pages_for_unpaginated_sources():
+    """Breezy.fetch takes no max_pages; passing it would raise TypeError."""
+    from jobhunt.poll import source_kwargs
+
+    cfg = ScoringConfig(
+        weights={"comp": 0.3, "qol": 0.2, "fit": 0.5},
+        qol_weights={"sunshine": 0.5, "nature": 0.3, "rent": 0.2},
+        role_families=[],
+    )
+    assert "max_pages" not in source_kwargs("breezy", cfg, {"max_pages": 3})
+    assert source_kwargs("successfactors", cfg, {"max_pages": 3})["max_pages"] == 3
+
+
+def test_every_registered_source_accepts_the_kwargs_it_is_given():
+    """Guards the registry against a source added without its kwargs wired up."""
+    import inspect
+
+    from jobhunt.poll import SOURCE_REGISTRY, source_kwargs
+
+    cfg = ScoringConfig(
+        weights={"comp": 0.3, "qol": 0.2, "fit": 0.5},
+        qol_weights={"sunshine": 0.5, "nature": 0.3, "rent": 0.2},
+        role_families=[],
+        poll_search_terms=["gnss"],
+    )
+    for ats, fetch in SOURCE_REGISTRY.items():
+        accepted = set(inspect.signature(fetch).parameters)
+        passed = set(source_kwargs(ats, cfg, {"max_pages": 3}))
+        assert passed <= accepted, f"{ats} cannot accept {passed - accepted}"
