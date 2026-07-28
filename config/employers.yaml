@@ -45,10 +45,15 @@ employers:
      notes: "No public ATS API. Probed 2026-07-27: not on Workday, Greenhouse,
              SmartRecruiters, Lever, Ashby, Recruitee or Personio. The portal is a
              JS-rendered .aspx app. Manual entry only until someone maps it."}
-  - {name: GMV, country: ES, city: Madrid, ats: manual, tags: [gnss, space],
+  - {name: GMV, country: ES, city: Madrid, ats: cornerstone,
+     ats_endpoint: "https://gmv.csod.com/ux/ats/careersite/4/home?c=gmv",
+     poll_enabled: true, tags: [gnss, space],
      careers_url: "https://gmv.csod.com/ux/ats/careersite/4/home?c=gmv&lang=en-US",
-     notes: "Cornerstone OnDemand (gmv.csod.com, careerSiteId 4), confirmed
-             2026-07-27. Pollable once a cornerstone source module exists."}
+     notes: "CONFIRMED 2026-07-28 — Cornerstone, ~192 requisitions. The 401
+             that blocked this for weeks needed no session: the career-site
+             page hands every visitor an anonymous JWT. Search is POST and
+             400s without cultureName. Per-posting country, so its Bogota and
+             Kuala Lumpur roles are dropped rather than filed under Madrid."}
   - {name: Telespazio Belgium, country: BE, city: Noordwijk, ats: breezy,
      ats_endpoint: "https://telespazio-be.breezy.hr/json",
      poll_enabled: true, tags: [gnss, space, esa-contractor],
@@ -82,11 +87,12 @@ employers:
      careers_url: "https://job-boards.eu.greenhouse.io/rocketfactoryaugsburgag",
      notes: "CONFIRMED 2026-07-27 — Greenhouse, 52 jobs. Some posts are in the UK
              (Shetland launch site); the matcher excludes those by country."}
-  - {name: OHB, country: DE, city: Bremen, ats: manual, tags: [space, industry],
+  - {name: OHB, country: DE, city: Bremen, ats: cornerstone,
+     ats_endpoint: "https://career-ohb.csod.com/ux/ats/careersite/4/home?c=career-ohb",
+     poll_enabled: true, tags: [space, industry],
      careers_url: "https://career-ohb.csod.com/ux/ats/careersite/4/home?c=career-ohb&lang=en-GB",
-     notes: "Cornerstone OnDemand, same platform as GMV. Its search API returns
-             401 without a session token, so this needs browser-session work
-             rather than a plain fetch. Manual for now."}
+     notes: "Same platform as GMV, so the same anonymous-token route works.
+             Enabled 2026-07-28."}
 
   # --- aggregators ---
   - {name: EURAXESS, country: "", city: "", ats: euraxess, poll_enabled: true,
@@ -105,16 +111,21 @@ employers:
      careers_url: "https://jobs.esa.int/",
      notes: "CONFIRMED 2026-07-27 — SAP SuccessFactors, ~51 open posts. No JSON
              API; the search results page is parsed instead."}
-  - {name: DLR, country: DE, city: Oberpfaffenhofen, ats: manual,
-     tags: [gnss, research, phd],
+  - {name: DLR, country: DE, city: Oberpfaffenhofen, ats: rss,
+     ats_endpoint: "https://jobs.dlr.de/services/rss/category/?catid=9261201",
+     poll_enabled: true, tags: [gnss, research, phd],
      careers_url: "https://jobs.dlr.de/go/Alle-Stellen/9261201/",
-     notes: "SuccessFactors, but unlike ESA and Beyond Gravity this tenant renders
-             its results in JavaScript — /search/ and /go/ both return zero job
-             tiles to a plain fetch. The only no-JS view is the category RSS at
-             /services/rss/category/?catid=9261201, which is capped at the 10
-             newest postings, too narrow to poll honestly. Manual until either a
-             headless browser or a fuller feed is available. HIGH PRIORITY: the
-             Institute of Communications and Navigation is here."}
+     notes: "PARTIAL SOURCE, confirmed 2026-07-28. The SuccessFactors tenant
+             renders everything in JavaScript — /search/, /searchjobs/ and /go/
+             all return a page with no job in it, with or without facet
+             filters — so the German category RSS is the only machine-readable
+             view. It is capped at the TEN NEWEST postings, so this catches new
+             openings only and cannot see the back catalogue: poll often, and
+             check the site by hand before concluding DLR has nothing. The
+             English feed (catid 9291501) is empty; the German one is the live
+             one. Carries full advert text, so what it catches needs no fetch.
+             HIGH PRIORITY: the Institute of Communications and Navigation is
+             here."}
   - {name: Fraunhofer IIS, country: DE, city: Nuremberg, ats: manual, tags: [gnss, research, phd],
      careers_url: "https://www.iis.fraunhofer.de/en/jobs/stellen.html"}
   - {name: CNES, country: FR, city: Toulouse, ats: manual, tags: [space, agency],
@@ -170,10 +181,14 @@ employers:
   - {name: Akkodis, country: FR, city: Lyon, ats: manual, tags: [consulting, aerospace],
      careers_url: "https://www.akkodis.com/en/careers",
      notes: "Probed 2026-07-27: no public board API found. LinkedIn only."}
-  - {name: Capgemini Engineering, country: FR, city: Blagnac, ats: manual,
-     tags: [consulting, aerospace],
-     careers_url: "https://www.capgemini.com/careers/join-capgemini/job-search/",
-     notes: "Ex-Altran. Custom Capgemini board, no public API. LinkedIn only."}
+  - {name: Capgemini Engineering, country: FR, city: Blagnac, ats: capgemini,
+     ats_endpoint: "fr-fr|Capgemini Engineering",
+     poll_enabled: true, tags: [consulting, aerospace],
+     careers_url: "https://www.capgemini.com/fr-fr/carrieres/rejoignez-nous/nos-offres-demploi/",
+     notes: "CONFIRMED 2026-07-28 — ex-Altran. Bespoke 'jobstream' API behind
+             the careers site, filtered to the Capgemini Engineering brand.
+             Returns the full advert text, so its jobs need no second fetch
+             before the model can read them."}
   - {name: Sopra Steria, country: FR, city: Toulouse, ats: manual, tags: [consulting, space],
      careers_url: "https://www.soprasteria.com/careers",
      notes: "Absorbed CS Group, which held real space and defence work.
@@ -183,9 +198,14 @@ employers:
      careers_url: "https://www.segulatechnologies.com/en/careers/",
      notes: "SmartRecruiters 'segulatechnologies' exists but held one posting at
              discovery — a stale account. Real postings are on LinkedIn."}
-  - {name: SII Group, country: FR, city: Toulouse, ats: manual, tags: [consulting, aerospace],
-     careers_url: "https://sii-group.com/en-FR/careers",
-     notes: "Probed 2026-07-27: no public board API found. LinkedIn only."}
+  - {name: SII Group, country: FR, city: Toulouse, ats: sii,
+     ats_endpoint: "https://sii-group.com/fr-FR/join-us",
+     poll_enabled: true, tags: [consulting, aerospace],
+     careers_url: "https://sii-group.com/fr-FR/join-us",
+     notes: "CONFIRMED 2026-07-28 — no API, but the Drupal listing renders
+             server-side, so the postings are in the HTML. The most fragile
+             source here: a theme change breaks the parser, and it fails by
+             reporting seen 0."}
 
   # --- ESA support contractors ---
   # Most engineering physically done at ESTEC, ESOC and ESRIN is advertised by

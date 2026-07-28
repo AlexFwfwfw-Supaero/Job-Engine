@@ -8,8 +8,8 @@ from jobhunt.match import evaluate
 from jobhunt.models import Employer, Job
 from jobhunt.score import compensation, quality_of_life, total_score
 from jobhunt.sources import (
-    breezy, euraxess, greenhouse, recruitee, smartrecruiters, successfactors,
-    workday,
+    breezy, capgemini, cornerstone, euraxess, greenhouse, recruitee, rss, sii,
+    smartrecruiters, successfactors, workday,
 )
 from jobhunt.sources.base import RawPosting
 from jobhunt.store import Store
@@ -23,11 +23,16 @@ SOURCE_REGISTRY: dict[str, Callable] = {
     greenhouse.NAME: greenhouse.fetch,
     smartrecruiters.NAME: smartrecruiters.fetch,
     recruitee.NAME: recruitee.fetch,
+    cornerstone.NAME: cornerstone.fetch,
+    capgemini.NAME: capgemini.fetch,
+    sii.NAME: sii.fetch,
+    rss.NAME: rss.fetch,
 }
 
 # Sources that return their whole board in one unpaginated response and so
 # take no max_pages; passing one would raise TypeError.
-UNPAGINATED = frozenset({breezy.NAME, greenhouse.NAME, recruitee.NAME})
+UNPAGINATED = frozenset({breezy.NAME, greenhouse.NAME, recruitee.NAME,
+                        rss.NAME})
 
 
 def source_kwargs(ats: str, cfg: ScoringConfig, common: dict) -> dict:
@@ -40,6 +45,12 @@ def source_kwargs(ats: str, cfg: ScoringConfig, common: dict) -> dict:
     kwargs = dict(common)
     if ats == workday.NAME:
         kwargs["search_terms"] = list(cfg.poll_search_terms)
+    if ats == sii.NAME:
+        # Six rows a page against Workday's twenty, and the board runs past
+        # 360: the shared count would have seen 30 of them.
+        kwargs["max_pages"] = max(
+            int(kwargs.get("max_pages") or 0), sii.DEFAULT_MAX_PAGES
+        )
     if ats == smartrecruiters.NAME:
         # A page is 100 postings here against Workday's 20, and these boards
         # run past a thousand. Sharing one page count meant the first live
@@ -61,6 +72,20 @@ class PollReport:
     new: int = 0
     skipped: int = 0
     error: str | None = None
+
+
+# Below this a "description" is the title echoed back, not an advert. Sources
+# that carry the real text (Capgemini, and manual entry) let the model read a
+# posting with no second fetch; sources that do not must leave the column empty
+# so enrichment still goes and gets the page.
+MIN_STORED_DESCRIPTION = 200
+
+
+def _stored_description(posting: RawPosting) -> str:
+    text = (posting.description or "").strip()
+    if len(text) < MIN_STORED_DESCRIPTION or text == (posting.title or "").strip():
+        return ""
+    return text
 
 
 def _score_and_store(
@@ -99,6 +124,7 @@ def _score_and_store(
         total_score=total,
         language_flags=match.language_flags,
         tags=list(employer.tags),
+        description=_stored_description(posting),
     ))
     return True
 

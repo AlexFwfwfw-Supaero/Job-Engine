@@ -276,3 +276,55 @@ def test_an_explicit_deeper_page_budget_is_respected():
 
     cfg = ScoringConfig(weights={}, qol_weights={}, role_families=[])
     assert source_kwargs("smartrecruiters", cfg, {"max_pages": 40})["max_pages"] == 40
+
+
+def test_the_new_sources_are_registered():
+    from jobhunt.poll import SOURCE_REGISTRY
+
+    for name in ("cornerstone", "capgemini", "sii"):
+        assert name in SOURCE_REGISTRY, name
+
+
+def test_a_source_that_carries_the_posting_text_saves_it(store, tmp_path):
+    """Capgemini returns the whole advert. Storing it means the model never
+    has to fetch that posting — a fetch that fails on half these sites."""
+    from jobhunt.config import CompConfig, RoleFamily, ScoringConfig
+    from jobhunt.models import Employer
+    from jobhunt.poll import _score_and_store
+    from jobhunt.sources.base import RawPosting
+
+    cfg = ScoringConfig(
+        weights={"comp": 0.3, "qol": 0.2, "fit": 0.5}, qol_weights={},
+        role_families=[RoleFamily(name="gnss", weight=1.0, keywords=["gnss"])])
+    comp = CompConfig(salary_by_country={}, effective_tax={}, pli={},
+                      reference_purchasing_power=40000)
+    eid = store.upsert_employer(Employer(name="Capgemini Engineering"))
+    employer = store.get_employer(eid)
+
+    body = "Vous travaillerez sur les récepteurs GNSS. " * 12
+    assert _score_and_store(store, employer, RawPosting(
+        source="capgemini", url="https://x/1", title="Ingénieur GNSS",
+        description=body), cfg, comp, {}, "2026-07-27T00:00:00Z")
+    assert "récepteurs GNSS" in store.list_jobs()[0].description
+
+
+def test_a_source_that_only_echoes_the_title_saves_no_text(store):
+    """Workday's 'description' is the title again. Storing that would make
+    enrichment skip the fetch and analyse a title as if it were the advert."""
+    from jobhunt.config import CompConfig, RoleFamily, ScoringConfig
+    from jobhunt.models import Employer
+    from jobhunt.poll import _score_and_store
+    from jobhunt.sources.base import RawPosting
+
+    cfg = ScoringConfig(
+        weights={"comp": 0.3, "qol": 0.2, "fit": 0.5}, qol_weights={},
+        role_families=[RoleFamily(name="gnss", weight=1.0, keywords=["gnss"])])
+    comp = CompConfig(salary_by_country={}, effective_tax={}, pli={},
+                      reference_purchasing_power=40000)
+    eid = store.upsert_employer(Employer(name="Airbus"))
+    employer = store.get_employer(eid)
+
+    _score_and_store(store, employer, RawPosting(
+        source="workday", url="https://x/2", title="GNSS Engineer",
+        description="GNSS Engineer"), cfg, comp, {}, "2026-07-27T00:00:00Z")
+    assert store.list_jobs()[0].description == ""
