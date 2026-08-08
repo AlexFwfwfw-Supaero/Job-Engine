@@ -26,11 +26,12 @@ class AiProgress:
         self.running = False
         self.total = 0
         self.done = 0
-        self.failed = 0
+        self.failures: list[str] = []
 
     def start(self, total: int) -> None:
         with self._lock:
-            self.running, self.total, self.done, self.failed = True, total, 0, 0
+            self.running, self.total, self.done = True, total, 0
+            self.failures = []
 
     def step(self) -> None:
         """One posting finished. Called per job so the count moves during the
@@ -38,9 +39,14 @@ class AiProgress:
         with self._lock:
             self.done += 1
 
-    def finish(self, done: int, failed: int) -> None:
+    def finish(self, done: int, failures: list[str] | None = None) -> None:
         with self._lock:
-            self.running, self.done, self.failed = False, done, failed
+            self.running, self.done = False, done
+            self.failures = list(failures or [])
+
+    @property
+    def failed(self) -> int:
+        return len(self.failures)
 
     @property
     def text(self) -> str:
@@ -53,7 +59,10 @@ class AiProgress:
 
     def as_dict(self) -> dict:
         return {"running": self.running, "total": self.total,
-                "done": self.done, "failed": self.failed, "text": self.text}
+                "done": self.done, "failed": self.failed,
+                # Why each one failed, not just how many. A run that reports
+                # "28 failed" and nothing else gives you nowhere to start.
+                "failures": list(self.failures), "text": self.text}
 
 
 class PollProgress:

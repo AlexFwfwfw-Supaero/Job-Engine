@@ -20,6 +20,11 @@
 </div>
 <p class="sub" id="poll-status">{{ poll_progress.text }}</p>
 <p class="sub" id="ai-status">{{ ai_progress.text }}</p>
+{% if ai_progress.failures %}
+<details class="sub"><summary>Why {{ ai_progress.failed }} failed</summary>
+  <ul>{% for line in ai_progress.failures %}<li>{{ line }}</li>{% endfor %}</ul>
+</details>
+{% endif %}
 {% if ai_progress.running %}
 <p class="sub"><strong>Reading the {{ ai_progress.total }} posting(s) the model had not
 read before.</strong> Jobs already carrying an AI score are untouched. This runs
@@ -104,7 +109,17 @@ survives even if the URL cannot be fetched at all.</p>
 <p><button type="submit">Add</button></p>
 </form>
 
-<h2>Spotted <span class="sub">({{ rows|length }})</span></h2>
+<h2>Spotted <span class="sub">({{ rows|length }})</span>
+  <span class="sub">sort:
+  {% for key, label in sorts %}{% if key == sort %}<strong>{{ label }}</strong>{%
+    else %}<a href="/search?sort={{ key }}">{{ label }}</a>{% endif %}{{
+    ' · ' if not loop.last }}{% endfor %}</span></h2>
+<p class="sub">{% if sort == 'ai' %}The model's reading of the posting body, on
+its own. Jobs it has not read yet are last.{% elif sort == 'score' %}The
+rule-based score from the title, compensation and city, before the model read
+anything.{% else %}The model's fit folded into your compensation and
+quality-of-life weights — what to apply to, rather than what matches best.{%
+endif %}</p>
 {% if rows %}
 <table>
   <tr><th>Job</th><th>Compensation</th><th>Score</th><th>Triage</th></tr>

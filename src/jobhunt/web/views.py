@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from typing import Callable
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -142,7 +143,30 @@ def _linkedin_groups(cfg, cities) -> list[tuple[str, list]]:
     return _group_links(build_links(cfg, locations_from_cities(cities)))
 
 
-def search_context(store: Store, deps: Deps) -> dict:
+# How the Spotted table can be ordered, highest first. The default blends the
+# model's fit with compensation and quality of life, which is right for
+# deciding where to apply but buries a strong read under a weak salary band;
+# "ai" is that read on its own. Each key returns a sort key, not a comparison.
+SPOTTED_SORTS: dict[str, tuple[str, Callable[[JobRow], float]]] = {
+    "rank": ("Rank", lambda row: row.job.rank_score or 0.0),
+    # Unread jobs have no reading to sort on, so they go last rather than
+    # landing among the zeros as if the model had rejected them.
+    "ai": ("AI fit", lambda row: -1.0 if row.job.llm_fit is None
+           else row.job.llm_fit),
+    "score": ("Score", lambda row: row.job.total_score or 0.0),
+}
+DEFAULT_SPOTTED_SORT = "rank"
+
+
+def sort_rows(rows: list[JobRow], sort: str) -> list[JobRow]:
+    """Order the Spotted table. An unknown sort falls back to the default
+    rather than erroring: the value arrives from a query string."""
+    _, key = SPOTTED_SORTS.get(sort, SPOTTED_SORTS[DEFAULT_SPOTTED_SORT])
+    return sorted(rows, key=key, reverse=True)
+
+
+def search_context(store: Store, deps: Deps,
+                   sort: str = DEFAULT_SPOTTED_SORT) -> dict:
     jobs = store.list_jobs(stage=Stage.SPOTTED)
     employers = store.list_employers()
     pollable = [e for e in employers if e.poll_enabled]
@@ -157,7 +181,9 @@ def search_context(store: Store, deps: Deps) -> dict:
         "poll_progress": POLL,
         "tabs": TABS,
         "active": "search",
-        "rows": _rows(store, jobs, deps),
+        "rows": sort_rows(_rows(store, jobs, deps), sort),
+        "sort": sort if sort in SPOTTED_SORTS else DEFAULT_SPOTTED_SORT,
+        "sorts": [(key, label) for key, (label, _) in SPOTTED_SORTS.items()],
         "search_available": bool(pollable),
         "pollable": [e.name for e in pollable],
         "unwatched_count": len(employers) - len(pollable),

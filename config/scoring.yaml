@@ -14,6 +14,11 @@ language_keywords:
   de: ["german language", "deutschkenntnisse", "fluent german", "german is required"]
   nl: ["dutch language", "fluent dutch"]
 
+# Matched against the title only, and accent-insensitively — "ingenieur
+# commercial" catches "ingénieur commercial". The French and German entries are
+# not decoration: nine of nineteen polled employers post in French and six in
+# German, and until these existed a "Vertriebsingenieur Navigation" and an
+# "ingénieur commercial navigation" both scored 0.45 and were stored.
 negative_keywords:
   - "land surveyor"
   - "surveying technician"
@@ -22,6 +27,22 @@ negative_keywords:
   - "sales representative"
   - "field service"
   - "business development"
+  # French
+  - "ingenieur commercial"
+  - "charge d'affaires"
+  - "chargee d'affaires"
+  - "developpement commercial"
+  - "attache commercial"
+  - "geometre"
+  - "technico-commercial"
+  # German
+  - "vertriebsingenieur"
+  - "vertriebsmitarbeiter"
+  - "vertriebsleiter"
+  # Außendienst: ß folds to ss, so the folded spelling is what to write here.
+  - "aussendienst"
+  - "kundenberater"
+  - "vermessungstechniker"
 
 staleness:
   applied: [14, 30]
@@ -46,6 +67,12 @@ poll_search_terms:
   - r&t
   - research engineer
   - études amont
+  # German tenants (Airbus DS is Workday and posts in German) search their own
+  # text, so an English-only term list never reaches their postings.
+  - signalverarbeitung
+  - navigationssysteme
+  - sensorfusion
+  - regelungstechnik
 
 # R&D and R&T describe the *kind* of work, not its subject. These terms lift a
 # posting that already matched a role family below and do nothing to one that
@@ -55,9 +82,12 @@ poll_search_terms:
 # counts here when it is research in radar, navigation or signal processing.
 role_modifiers:
   weight: 0.20
+  # Accents are folded before matching now, so a term needs listing once —
+  # "études amont" and "etudes amont" are the same key.
   keywords: ["r&d", "r&t", "research", "recherche", "innovation",
              "advanced", "demonstrator", "prototype", "études amont",
-             "etudes amont", "phd", "doctoral"]
+             "phd", "doctoral", "doctorant", "these",
+             "forschung", "entwicklung", "promotion", "doktorand"]
 
 role_families:
   - name: gnss
@@ -68,11 +98,20 @@ role_families:
                # Bare "ppp" was removed: on consulting boards it is
                # public-private partnership, and "PPP Expert / Financial
                # Analyst" in Hyderabad outscored a real Toulouse GNSS role.
-               "precise point positioning", "ppp-rtk"]
+               "precise point positioning", "ppp-rtk",
+               # The acronyms carry across languages; the supporting terms did
+               # not, so a French or German posting never saturated its family
+               # and ranked half a point below its English twin.
+               "recepteur", "traitement du signal", "acquisition et poursuite",
+               "positionnement precis",
+               "empfanger", "signalverarbeitung", "satellitennavigation"]
   - name: pnt
     weight: 1.0
     keywords: ["pnt", "integrity", "spoofing", "jamming", "interference",
-               "anti-jam", "raim", "resilient navigation", "timing"]
+               "anti-jam", "raim", "resilient navigation", "timing",
+               "brouillage", "anti-brouillage", "leurrage", "integrite",
+               "datation", "synchronisation temporelle",
+               "storunterdruckung", "storfestigkeit", "zeitsynchronisation"]
   - name: navigation_systems
     weight: 0.9
     # The French terms are not translations for tidiness: ONERA, CNES and the
@@ -84,7 +123,11 @@ role_families:
                "gnc", "flight dynamics", "orbit determination",
                "navigation payload", "localisation", "guidage",
                "guidage-pilotage", "navigation inertielle",
-               "centrale inertielle", "recalage"]
+               "centrale inertielle", "recalage",
+               # German: DLR, OHB, Airbus DS and Beyond Gravity post in German
+               # and had no keyword of their own until now.
+               "tragheitsnavigation", "bahnbestimmung", "flugregelung",
+               "flugdynamik", "ortung", "lageregelung", "navigationssystem"]
   - name: sensor_fusion
     weight: 0.9
     # Bare "estimation" was removed: it matched cost and quantity estimation
@@ -93,12 +136,19 @@ role_families:
                "ins", "state estimation", "orbit estimation",
                "attitude estimation", "estimation theory", "slam",
                "fusion de données", "filtrage particulaire",
-               "trajectographie", "poursuite de cible"]
+               "trajectographie", "poursuite de cible",
+               "filtre de kalman", "estimation d'etat",
+               "sensorfusion", "datenfusion", "zustandsschatzung",
+               "kalman-filter", "tragheitssensorik"]
   - name: radar
     weight: 0.8
     keywords: ["radar", "sar", "doppler", "waveform", "beamforming",
                "electromagnetic", "rf front-end", "rf", "antenna", "microwave",
-               "radio frequency", "electronic warfare", "phased array"]
+               "radio frequency", "electronic warfare", "phased array",
+               "forme d'onde", "guerre electronique", "hyperfrequence",
+               "antenne", "traitement radar",
+               "wellenform", "elektromagnetisch", "mikrowelle",
+               "hochfrequenz", "radartechnik", "antennenentwicklung"]
   - name: adjacent
     weight: 0.5
     keywords: ["autonomous driving", "geodesy", "remote sensing",

@@ -101,10 +101,62 @@ Employer location: {job.city} {job.country}
 
 {body}
 
-Judge this posting for this candidate. Be strict about domain: a posting that
-mentions GNSS once while being a manufacturing, quality or sales role is not a
-match. Be strict about seniority: "junior" in the title but five years of
-required experience is not junior.
+Judge this posting for this candidate.
+
+SUBJECT AREAS, in tiers. All three tiers are welcome work; the tier sets the
+ceiling on domain_fit, not whether the job counts at all.
+- Tier 1 (up to 1.0): GNSS, PNT, satellite navigation, and navigation systems
+  generally — receivers, signal processing for navigation, integrity,
+  interference and spoofing, GNC, inertial navigation.
+- Tier 2 (up to 0.9): radar of any kind including SAR, and sensing broadly —
+  passive sensing, passive radar, radiometry, electronic support and signals
+  intelligence, remote sensing, electro-optical and RF sensing — together with
+  estimation and detection theory, and the signal processing behind them.
+- Tier 3 (up to 0.8): attitude determination and control, target tracking and
+  trajectography, sensor and data fusion, SLAM, filtering.
+Work outside all three is not a match however good the employer: score it below
+0.2 and say what it actually is.
+
+SECTORS, in descending order of interest: space, defence, astronomy and
+instrumentation, aeronautics. A posting in one of these is worth slightly more
+than the same work in automotive, rail, telecoms or industrial metrology. Let
+this break ties — a few hundredths — rather than override the tier.
+
+Be strict about the role itself: a posting that mentions GNSS once while being a
+manufacturing, quality or sales role is not a match.
+
+Be stricter still about seniority, because this candidate is starting out and a
+role they cannot be hired into is worth nothing however well the subject matter
+fits. Judge the experience actually demanded, not the word in the title:
+"junior" with five years of required experience is a mid role, and "Expert",
+"Senior", "Lead", "Principal", "Responsable", "Chef de projet", "Architect",
+"Manager" or "Referent" in the title is senior unless the body contradicts it.
+
+Apply this to domain_fit directly, so an out-of-reach role cannot rank above a
+reachable one:
+- 0-2 years required, or an explicit graduate, PhD, apprenticeship or
+  internship route: no penalty.
+- 3-5 years required: cap domain_fit at 0.6.
+- more than 5 years required, or the role leads a team or owns a budget: cap
+  domain_fit at 0.3 and say so in "reason".
+A perfect thematic match at senior level is still a poor use of an application;
+score it that way rather than rewarding the topic.
+
+Weigh what the work actually is, not just what it is about. Rank highest the
+roles where the candidate would design, model, derive or investigate: algorithm
+design, simulation and modelling, performance analysis, research, prototyping,
+architecture of a system that does not exist yet. Rank well below those the
+roles that execute or administer someone else's design, even on identical
+subject matter — running a test bench to a written procedure, integration and
+assembly, instrument operation, measurement campaigns, calibration, technician
+and operator posts, and compliance, verification, certification, qualification,
+documentation or standards-conformance work where the task is to demonstrate
+that an existing thing meets a written requirement. Halve domain_fit for those
+and name the reason. "Ingénieur essais", "Technicien", "V&V Engineer",
+"Quality/Product Assurance", "Configuration Manager" and "Test Operator" are
+the usual shapes. Hands-on test work that includes designing the experiment or
+analysing the results to change the design is not in this category — read the
+body before deciding.
 
 Reply with a single JSON object and nothing else:
 {{"relevant": true/false,

@@ -22,8 +22,9 @@ from jobhunt.store import Store
 from jobhunt.web.deps import Deps
 from jobhunt.web.progress import ADVICE, POLL, PROGRESS
 from jobhunt.web.views import (
-    TABS, advice_context, applied_context, archive_context, deadlines_context,
-    interested_context, overview_context, render_tab, search_context,
+    DEFAULT_SPOTTED_SORT, TABS, advice_context, applied_context,
+    archive_context, deadlines_context, interested_context, overview_context,
+    render_tab, search_context,
 )
 
 CONTEXT_BUILDERS = {
@@ -52,7 +53,7 @@ def _write_briefing(deps: Deps, llm, scope: str) -> None:
         build_briefing(store, jobs, deps.profile(), _places(deps), llm,
                        _now(), scope=scope)
     finally:
-        ADVICE.finish(1, 0)
+        ADVICE.finish(1)
         store.close()
 
 
@@ -75,9 +76,9 @@ def _read_all(deps: Deps, cfg, llm, jobs) -> None:
         report = enrich_jobs(store, jobs, deps.profile(), llm,
                              fetch_posting_text, _now(), client=client,
                              weights=cfg.weights, on_done=PROGRESS.step)
-        PROGRESS.finish(report.analysed, len(report.failed))
+        PROGRESS.finish(report.analysed, report.failed)
     except Exception:
-        PROGRESS.finish(PROGRESS.done, PROGRESS.failed)
+        PROGRESS.finish(PROGRESS.done, PROGRESS.failures)
         raise
     finally:
         close = getattr(client, "close", None)
@@ -217,13 +218,16 @@ def create_app(deps: Deps) -> FastAPI:
         return {"poll": POLL.as_dict(), "ai": PROGRESS.as_dict()}
 
     @app.get("/{slug}", response_class=HTMLResponse)
-    def tab(slug: str) -> HTMLResponse:
+    def tab(slug: str, sort: str = DEFAULT_SPOTTED_SORT) -> HTMLResponse:
         builder = CONTEXT_BUILDERS.get(slug)
         if builder is None:
             raise HTTPException(status_code=404, detail=f"no such tab: {slug}")
+        # Only the search tab takes an option today. Naming it here beats
+        # threading a parameter blob through every context builder.
+        options = {"sort": sort} if slug == "search" else {}
         store = deps.store_factory()
         try:
-            return HTMLResponse(render_tab(slug, builder(store, deps)))
+            return HTMLResponse(render_tab(slug, builder(store, deps, **options)))
         finally:
             store.close()
 

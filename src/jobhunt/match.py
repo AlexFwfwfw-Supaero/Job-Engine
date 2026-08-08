@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from functools import lru_cache
 
@@ -32,6 +33,30 @@ class MatchResult:
 BOUNDARY_MAX_LENGTH = 4
 
 
+def fold(text: str) -> str:
+    """Lowercase and strip accents, so one spelling of a keyword matches them all.
+
+    French and German postings are not written to a house style: the same
+    posting board carries "fusion de données" and "fusion de donnees",
+    "Empfänger" and "EMPFAENGER" is rarer but "Störunterdrückung" appears
+    unaccented in plain-text exports. Matching the literal string meant a
+    keyword list had to carry every variant — config/scoring.yaml already
+    listed both "études amont" and "etudes amont" for exactly this reason.
+
+    ß is folded to ss because it decomposes to nothing under NFKD.
+    """
+    lowered = (text or "").lower().replace("ß", "ss")
+    decomposed = unicodedata.normalize("NFKD", lowered)
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+@lru_cache(maxsize=2048)
+def _folded_keyword(keyword: str) -> str:
+    """Keywords come from config and repeat on every posting; haystacks do not,
+    so only this side is cached."""
+    return fold(keyword)
+
+
 @lru_cache(maxsize=1024)
 def _keyword_pattern(keyword: str) -> re.Pattern[str] | None:
     if len(keyword) > BOUNDARY_MAX_LENGTH:
@@ -43,6 +68,8 @@ def _keyword_pattern(keyword: str) -> re.Pattern[str] | None:
 
 
 def _matches(keyword: str, haystack: str) -> bool:
+    """The haystack is expected folded already; evaluate() does that once."""
+    keyword = _folded_keyword(keyword)
     pattern = _keyword_pattern(keyword)
     if pattern is None:
         return keyword in haystack
@@ -66,8 +93,8 @@ def evaluate(
     title: str, description: str, country: str, cfg: ScoringConfig
 ) -> MatchResult:
     """Score a posting for relevance. Never mutates cfg; safe to call repeatedly."""
-    title_l = (title or "").lower()
-    desc_l = (description or "").lower()
+    title_l = fold(title)
+    desc_l = fold(description)
     reasons: list[str] = []
 
     if country and country.upper() in {c.upper() for c in cfg.excluded_countries}:

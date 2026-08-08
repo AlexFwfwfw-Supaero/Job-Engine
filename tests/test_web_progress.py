@@ -60,8 +60,17 @@ def test_the_read_counts_up_during_the_run():
 def test_a_finished_read_reports_what_it_managed():
     p = AiProgress()
     p.start(3)
-    p.finish(2, 1)
+    p.finish(2, ["https://x/1: ValueError: no description found"])
     assert p.text == "Model read 2 posting(s), 1 failed."
+
+
+def test_a_finished_read_keeps_why_each_one_failed():
+    """"28 failed" and nothing else gives you nowhere to start."""
+    p = AiProgress()
+    p.start(2)
+    p.finish(1, ["https://gmv.csod.com/4818: ValueError: no description found"])
+    assert p.as_dict()["failures"] == [
+        "https://gmv.csod.com/4818: ValueError: no description found"]
 
 
 # --- the endpoint and the route ----------------------------------------
@@ -187,6 +196,66 @@ def test_search_does_nothing_when_no_employer_is_polled(deps, db_path):
                        data={"return_to": "search"}).status_code == 303
     assert started == []
     assert POLL.running is False
+
+
+def test_the_spotted_table_can_be_sorted_three_ways(deps, db_path):
+    """The default blend buries a strong reading under a weak salary band."""
+    from jobhunt.models import Job
+    from jobhunt.web.views import search_context
+
+    store = Store(db_path)
+    store.initialize()
+
+    def spot(title, url, total, fit=None, rank=None):
+        jid = store.upsert_job(Job(
+            employer_id=1, title=title, url=url, country="FR",
+            source="workday", first_seen="t", last_seen="t",
+            total_score=total))
+        if fit is not None:
+            store.save_enrichment(jid, "text", fit, "{}", "t", rank)
+        return jid
+
+    # The real shape from the live database: a technician role the model rated
+    # highest, outranking a research role with a much better base score.
+    weak_read = spot("Technicien essais", "https://x/1", 0.31, 0.95, 0.78)
+    strong_base = spot("Ingénieur recherche radar", "https://x/2", 0.81,
+                       0.90, 0.76)
+    unread = spot("Navigation Engineer", "https://x/3", 0.70)
+    store.close()
+
+    def ids(sort):
+        return [r.job.id for r in search_context(
+            deps.store_factory(), deps, sort=sort)["rows"]]
+
+    assert ids("rank") == [weak_read, strong_base, unread]
+    assert ids("ai") == [weak_read, strong_base, unread]
+    assert ids("score") == [strong_base, unread, weak_read]
+
+
+def test_an_unread_job_sorts_last_by_ai_fit(deps, db_path):
+    """No reading is not the same as a reading of zero."""
+    from jobhunt.models import Job
+    from jobhunt.web.views import search_context
+
+    store = Store(db_path)
+    store.initialize()
+    unread = store.upsert_job(Job(
+        employer_id=1, title="Unread", url="https://x/1", country="FR",
+        source="workday", first_seen="t", last_seen="t", total_score=0.9))
+    rejected = store.upsert_job(Job(
+        employer_id=1, title="Read and rejected", url="https://x/2",
+        country="FR", source="workday", first_seen="t", last_seen="t",
+        total_score=0.1))
+    store.save_enrichment(rejected, "text", 0.0, "{}", "t")
+    store.close()
+
+    rows = search_context(deps.store_factory(), deps, sort="ai")["rows"]
+    assert [r.job.id for r in rows] == [rejected, unread]
+
+
+def test_an_unknown_sort_falls_back_instead_of_erroring(client):
+    """The value arrives from a query string."""
+    assert client.get("/search?sort=../../etc/passwd").status_code == 200
 
 
 def test_the_search_page_renders_the_status_lines(client):

@@ -247,3 +247,76 @@ def test_project_management_french_is_not_guidance():
 
     assert not evaluate("Chargé de pilotage de projet industriel", "", "FR",
                         _live_cfg()).relevant
+
+
+# --- French and German postings ----------------------------------------
+
+def test_accents_are_folded_so_one_spelling_covers_both():
+    """Boards are inconsistent: the same term appears accented or not."""
+    from jobhunt.match import evaluate, fold
+
+    assert fold("Fusion de Données") == "fusion de donnees"
+    assert fold("GNSS-Empfänger") == "gnss-empfanger"
+    assert fold("Störunterdrückung") == "storunterdruckung"
+
+    cfg = _live_cfg()
+    accented = evaluate("Ingénieur", "Fusion de données inertielles", "FR", cfg)
+    plain = evaluate("Ingenieur", "Fusion de donnees inertielles", "FR", cfg)
+    assert accented.role_fit == plain.role_fit > 0
+
+
+def test_a_german_posting_scores_like_its_english_twin():
+    """Six polled employers post in German and had no keyword of their own,
+    so an identical job scored half of what the English version did."""
+    from jobhunt.match import evaluate
+
+    cfg = _live_cfg()
+    english = evaluate(
+        "GNSS Receiver Signal Processing Engineer",
+        "Work on GNSS receiver acquisition and tracking, anti-jamming.",
+        "DE", cfg)
+    german = evaluate(
+        "Ingenieur Signalverarbeitung GNSS-Empfänger",
+        "Entwicklung eines GNSS-Empfängers, Störunterdrückung.",
+        "DE", cfg)
+    assert german.role_fit == english.role_fit == 1.0
+
+
+def test_a_french_posting_scores_like_its_english_twin():
+    from jobhunt.match import evaluate
+
+    cfg = _live_cfg()
+    english = evaluate(
+        "GNSS Receiver Signal Processing Engineer",
+        "Work on GNSS receiver acquisition and tracking, anti-jamming.",
+        "FR", cfg)
+    french = evaluate(
+        "Ingénieur traitement du signal récepteur GNSS",
+        "Conception d'un récepteur GNSS, acquisition et poursuite, "
+        "anti-brouillage.",
+        "FR", cfg)
+    assert french.role_fit == english.role_fit == 1.0
+
+
+def test_sales_roles_are_excluded_in_french_and_german_too():
+    """The negative list was English-only, so both of these were stored."""
+    from jobhunt.match import evaluate
+
+    cfg = _live_cfg()
+    assert not evaluate("Vertriebsingenieur Navigation", "", "DE", cfg).relevant
+    assert not evaluate("Ingénieur commercial navigation", "", "FR",
+                        cfg).relevant
+    assert not evaluate("Chargé d'affaires radar", "", "FR", cfg).relevant
+
+
+def test_german_engineering_roles_are_still_kept():
+    """The German negative keywords must not swallow real work."""
+    from jobhunt.match import evaluate
+
+    cfg = _live_cfg()
+    for title in (
+        "Ingenieur Trägheitsnavigation und Sensorfusion",
+        "Entwicklungsingenieur Radartechnik",
+        "Doktorand Signalverarbeitung für Satellitennavigation",
+    ):
+        assert evaluate(title, "", "DE", cfg).relevant, title

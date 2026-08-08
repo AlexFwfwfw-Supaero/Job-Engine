@@ -21,6 +21,13 @@ URL, re-check links), **Interested** (shortlisted, with priority and notes),
 **Applied** (grouped by stage, with staleness), **Archive** (ruled out, with
 reasons), **Deadlines** (recurring cycles).
 
+The **Spotted** table sorts three ways. *Rank* is the default: the model's fit
+folded into your compensation and quality-of-life weights, which answers "where
+should I apply". *AI fit* is the model's reading of the posting body on its own,
+with unread jobs last — use it when a good reading is being buried by a weak
+salary band. *Score* is the rule-based number from before the model read
+anything.
+
 **Search now** and **Rescore all** run in the background and report what they are
 doing under the buttons — which employer is being polled and what it has found,
 or how many postings the model has read of the total. A search that finishes
