@@ -8,8 +8,8 @@ from jobhunt.match import evaluate
 from jobhunt.models import Employer, Job
 from jobhunt.score import compensation, quality_of_life, total_score
 from jobhunt.sources import (
-    breezy, capgemini, cornerstone, euraxess, greenhouse, recruitee, rss, sii,
-    smartrecruiters, successfactors, talentlink, workday,
+    breezy, capgemini, cornerstone, euraxess, greenhouse, onera_theses, recruitee, rss,
+    sii, smartrecruiters, successfactors, talentlink, workday,
 )
 from jobhunt.sources.base import RawPosting
 from jobhunt.store import Store
@@ -28,12 +28,13 @@ SOURCE_REGISTRY: dict[str, Callable] = {
     sii.NAME: sii.fetch,
     rss.NAME: rss.fetch,
     talentlink.NAME: talentlink.fetch,
+    onera_theses.NAME: onera_theses.fetch,
 }
 
 # Sources that return their whole board in one unpaginated response and so
 # take no max_pages; passing one would raise TypeError.
 UNPAGINATED = frozenset({breezy.NAME, greenhouse.NAME, recruitee.NAME,
-                        rss.NAME})
+                        rss.NAME, onera_theses.NAME})
 
 
 def source_kwargs(ats: str, cfg: ScoringConfig, common: dict) -> dict:
@@ -105,7 +106,7 @@ def _score_and_store(
         return False
 
     city_entry = cities.get(posting.city.lower()) if posting.city else None
-    breakdown = compensation(country, "junior", posting.salary_stated,
+    breakdown = compensation(country, posting.level, posting.salary_stated,
                              comp_cfg, city_entry, cfg)
     qol = quality_of_life(city_entry, cfg)
     total = total_score(breakdown.normalised, qol, match.role_fit, cfg.weights)
@@ -124,6 +125,7 @@ def _score_and_store(
         qol_score=qol,
         total_score=total,
         language_flags=match.language_flags,
+        level=posting.level,
         tags=list(employer.tags),
         description=_stored_description(posting),
     ))

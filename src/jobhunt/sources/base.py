@@ -19,6 +19,9 @@ class RawPosting:
     description: str = ""
     salary_stated: float | None = None
     external_id: str = ""
+    # Doctoral offers are not paid like graduate posts, so a source that
+    # knows it is looking at a thesis must be able to say so.
+    level: str = "junior"
 
 
 class Source(Protocol):

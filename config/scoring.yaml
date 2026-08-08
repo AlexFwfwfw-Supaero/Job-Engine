@@ -75,16 +75,25 @@ role_families:
                "anti-jam", "raim", "resilient navigation", "timing"]
   - name: navigation_systems
     weight: 0.9
+    # The French terms are not translations for tidiness: ONERA, CNES and the
+    # Thales sites write their postings in French, and three real doctoral
+    # offers (space-debris localisation, VTOL guidance, swarm localisation)
+    # scored zero without them. "pilotage" alone is deliberately absent —
+    # in French it usually means steering a project, not flying anything.
     keywords: ["navigation", "avionics", "guidance navigation and control",
                "gnc", "flight dynamics", "orbit determination",
-               "navigation payload"]
+               "navigation payload", "localisation", "guidage",
+               "guidage-pilotage", "navigation inertielle",
+               "centrale inertielle", "recalage"]
   - name: sensor_fusion
     weight: 0.9
     # Bare "estimation" was removed: it matched cost and quantity estimation
     # on consulting boards. The qualified forms carry the same signal.
     keywords: ["sensor fusion", "kalman", "inertial", "imu",
                "ins", "state estimation", "orbit estimation",
-               "attitude estimation", "estimation theory", "slam"]
+               "attitude estimation", "estimation theory", "slam",
+               "fusion de données", "filtrage particulaire",
+               "trajectographie", "poursuite de cible"]
   - name: radar
     weight: 0.8
     keywords: ["radar", "sar", "doppler", "waveform", "beamforming",

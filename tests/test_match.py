@@ -207,3 +207,43 @@ def test_the_search_stays_in_europe():
     assert not evaluate("GNSS Systems Specialist", "", "CA", cfg).relevant
     assert not evaluate("SAR Payload System Engineer", "", "IN", cfg).relevant
     assert evaluate("GNSS Systems Specialist", "", "FR", cfg).relevant
+
+
+# --- French navigation vocabulary, found on ONERA's doctoral pages ------
+
+def test_french_navigation_terms_match():
+    """ONERA writes its theses in French. Three real doctoral offers scored
+    zero: space-debris localisation, VTOL guidance, and swarm localisation."""
+    from jobhunt.match import evaluate
+
+    cfg = _live_cfg()
+    for title in (
+        "Localisation de débris spatiaux dans les basses orbites de la Terre",
+        "Stabilisation et guidage de micro-drones hybrides VTOL",
+        "Coordination d'un essaim de drones pour la recherche et localisation",
+        "Trajectographie passive par filtrage particulaire",
+        "Recalage de navigation inertielle par vision",
+    ):
+        assert evaluate(title, "", "FR", cfg).relevant, title
+
+
+def test_statistical_estimation_is_still_not_navigation():
+    """The same pages carry extreme-value-theory theses. 'Estimation' there
+    means statistics, and they must stay out."""
+    from jobhunt.match import evaluate
+
+    cfg = _live_cfg()
+    for title in (
+        "IA générative et théorie des valeurs extrêmes : estimation des queues",
+        "Prédiction conforme pour l'estimation d'évènements rares",
+    ):
+        assert not evaluate(title, "", "FR", cfg).relevant, title
+
+
+def test_project_management_french_is_not_guidance():
+    """'Pilotage' alone is business French for steering a project, so it is
+    deliberately not a keyword; only guidage-pilotage is."""
+    from jobhunt.match import evaluate
+
+    assert not evaluate("Chargé de pilotage de projet industriel", "", "FR",
+                        _live_cfg()).relevant

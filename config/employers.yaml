@@ -142,7 +142,23 @@ employers:
              Lille. Carries the full advert, so its jobs need no second fetch.
              PhD and post-doc offers are advertised separately at
              onera.fr/fr/faire-une-these-ou-un-post-doc-a-l-onera and are NOT
-             in this feed — check that page by hand."}
+             in this feed — the ONERA Doctoral entry polls those."}
+  - {name: ONERA Doctoral, country: FR, city: Palaiseau, ats: onera_theses,
+     ats_endpoint: "https://w3.onera.fr/formationparlarecherche/theses-dtis,
+                    https://w3.onera.fr/formationparlarecherche/theses-demr,
+                    https://w3.onera.fr/formationparlarecherche/theses-dota,
+                    https://w3.onera.fr/formationparlarecherche/theses-dphy,
+                    https://w3.onera.fr/formationparlarecherche/theses-dmpe",
+     poll_enabled: true, tags: [radar, research, phd],
+     careers_url: "https://w3.onera.fr/formationparlarecherche/propositions-theses",
+     notes: "CONFIRMED 2026-07-28 — five department pages of doctoral offers,
+             separate from the TalentLink feed under the ONERA entry. DEMR is
+             electromagnetics and radar, DTIS information processing and
+             systems; DOTA, DPHY and DMPE are optics, physics and energy.
+             CRITICAL: each page lists filled positions under 'Pourvu' FIRST
+             and open ones under 'A pourvoir' second. Only the latter are
+             polled. Postings are stored at level phd, so they are priced
+             against a doctoral salary rather than a graduate one."}
 
   # --- universities ---
   - {name: Universitaet der Bundeswehr Muenchen, country: DE, city: Munich,

@@ -328,3 +328,46 @@ def test_a_source_that_only_echoes_the_title_saves_no_text(store):
         source="workday", url="https://x/2", title="GNSS Engineer",
         description="GNSS Engineer"), cfg, comp, {}, "2026-07-27T00:00:00Z")
     assert store.list_jobs()[0].description == ""
+
+
+def test_a_doctoral_posting_is_not_priced_as_a_junior_engineer(store):
+    """Polled jobs were all assumed junior. A PhD stipend is not a graduate
+    salary, so the compensation score was wrong for every doctoral offer."""
+    from jobhunt.config import CompConfig, RoleFamily, ScoringConfig
+    from jobhunt.models import Employer
+    from jobhunt.poll import _score_and_store
+    from jobhunt.sources.base import RawPosting
+
+    cfg = ScoringConfig(
+        weights={"comp": 1.0, "qol": 0.0, "fit": 0.0}, qol_weights={},
+        role_families=[RoleFamily(name="radar", weight=1.0, keywords=["radar"])])
+    comp = CompConfig(salary_by_country={"FR": {"junior": 40000, "phd": 24000}},
+                      effective_tax={"FR": 0.25}, pli={"FR": 1.0},
+                      reference_purchasing_power=40000)
+    eid = store.upsert_employer(Employer(name="ONERA Doctoral", country="FR"))
+    employer = store.get_employer(eid)
+
+    _score_and_store(store, employer, RawPosting(
+        source="onera_theses", url="https://x/t1", title="Thèse radar SAR",
+        country="FR", level="phd"), cfg, comp, {}, "2026-07-28T00:00:00Z")
+
+    job = store.list_jobs()[0]
+    assert job.level == "phd"
+
+
+def test_a_posting_with_no_level_is_still_treated_as_junior(store):
+    from jobhunt.config import CompConfig, RoleFamily, ScoringConfig
+    from jobhunt.models import Employer
+    from jobhunt.poll import _score_and_store
+    from jobhunt.sources.base import RawPosting
+
+    cfg = ScoringConfig(
+        weights={"comp": 0.3, "qol": 0.2, "fit": 0.5}, qol_weights={},
+        role_families=[RoleFamily(name="radar", weight=1.0, keywords=["radar"])])
+    comp = CompConfig(salary_by_country={}, effective_tax={}, pli={},
+                      reference_purchasing_power=40000)
+    eid = store.upsert_employer(Employer(name="Thales", country="FR"))
+    _score_and_store(store, store.get_employer(eid), RawPosting(
+        source="workday", url="https://x/t2", title="Radar Engineer"),
+        cfg, comp, {}, "2026-07-28T00:00:00Z")
+    assert store.list_jobs()[0].level == "junior"
