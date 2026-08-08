@@ -9,7 +9,7 @@ from jobhunt.models import Employer, Job
 from jobhunt.score import compensation, quality_of_life, total_score
 from jobhunt.sources import (
     breezy, capgemini, cornerstone, euraxess, greenhouse, recruitee, rss, sii,
-    smartrecruiters, successfactors, workday,
+    smartrecruiters, successfactors, talentlink, workday,
 )
 from jobhunt.sources.base import RawPosting
 from jobhunt.store import Store
@@ -27,6 +27,7 @@ SOURCE_REGISTRY: dict[str, Callable] = {
     capgemini.NAME: capgemini.fetch,
     sii.NAME: sii.fetch,
     rss.NAME: rss.fetch,
+    talentlink.NAME: talentlink.fetch,
 }
 
 # Sources that return their whole board in one unpaginated response and so

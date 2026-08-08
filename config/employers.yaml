@@ -131,8 +131,18 @@ employers:
   - {name: CNES, country: FR, city: Toulouse, ats: manual, tags: [space, agency],
      careers_url: "https://recrutement.cnes.fr/en/annonces",
      notes: "Cegid Talentsoft. Identified 2026-07-27, endpoint not mapped."}
-  - {name: ONERA, country: FR, city: Toulouse, ats: manual, tags: [radar, research, phd],
-     careers_url: "https://www.onera.fr/en/jobs"}
+  - {name: ONERA, country: FR, city: Palaiseau, ats: talentlink,
+     ats_endpoint: "P6VFK026203F3VBQB68LOF6Z3",
+     poll_enabled: true, tags: [radar, research, phd],
+     careers_url: "https://rejoindre.onera.fr/",
+     notes: "CONFIRMED 2026-07-28 — TalentLink/Lumesse widget, ~91 postings.
+             Nothing is in the page HTML; the widget's REST call is what
+             carries the jobs, using the guest login published in its own
+             JavaScript. Sites at Palaiseau, Chatillon, Toulouse, Salon and
+             Lille. Carries the full advert, so its jobs need no second fetch.
+             PhD and post-doc offers are advertised separately at
+             onera.fr/fr/faire-une-these-ou-un-post-doc-a-l-onera and are NOT
+             in this feed — check that page by hand."}
 
   # --- universities ---
   - {name: Universitaet der Bundeswehr Muenchen, country: DE, city: Munich,
