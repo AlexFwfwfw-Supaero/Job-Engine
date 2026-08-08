@@ -204,6 +204,45 @@ def test_poll_all_records_an_unknown_ats_instead_of_crashing(store, cfg, comp_cf
     assert "nosuchats" in reports[0].error
 
 
+def test_poll_all_reports_each_employer_as_it_goes(store, cfg, comp_cfg, cities):
+    """The sweep takes minutes, so callers need to say what it is doing now."""
+    store.upsert_employer(Employer(name="Airbus", ats="workday",
+                                   poll_enabled=True, country="DE"))
+    store.upsert_employer(Employer(name="Thales", ats="workday",
+                                   poll_enabled=True, country="DE"))
+
+    events = []
+    registry = {"workday": fake_source([posting("GNSS Engineer", "https://x/1")])}
+    poll_all(store, registry, None, cfg, comp_cfg, cities,
+             now="2026-07-26T00:00:00Z",
+             on_start=lambda name: events.append(("start", name)),
+             on_done=lambda report: events.append(("done", report.employer)))
+
+    assert events == [("start", "Airbus"), ("done", "Airbus"),
+                      ("start", "Thales"), ("done", "Thales")]
+
+
+def test_poll_all_reports_a_failing_employer_too(store, cfg, comp_cfg, cities):
+    """Otherwise the count stalls on whichever source broke."""
+    store.upsert_employer(Employer(name="Weird", ats="nosuchats",
+                                   poll_enabled=True, country="DE"))
+
+    def boom(employer, client, **kwargs):
+        raise RuntimeError("503")
+
+    store.upsert_employer(Employer(name="OHB", ats="workday",
+                                   poll_enabled=True, country="DE"))
+
+    events = []
+    poll_all(store, {"workday": boom}, None, cfg, comp_cfg, cities,
+             now="2026-07-26T00:00:00Z",
+             on_start=lambda name: events.append(("start", name)),
+             on_done=lambda r: events.append(("done", r.employer, bool(r.error))))
+
+    assert events == [("start", "OHB"), ("done", "OHB", True),
+                      ("start", "Weird"), ("done", "Weird", True)]
+
+
 def test_report_totals_add_up():
     reports = [
         PollReport(employer="A", source="workday", seen=10, stored=3, new=2),

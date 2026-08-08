@@ -6,7 +6,7 @@
 <div class="bar">
   <form method="post" action="/actions/search">
     <input type="hidden" name="return_to" value="search">
-    <button type="submit" {{ 'disabled' if not search_available else '' }}>Search now</button>
+    <button type="submit" {{ 'disabled' if not search_available or poll_progress.running else '' }}>Search now</button>
   </form>
   <form method="post" action="/actions/refresh">
     <input type="hidden" name="return_to" value="search">
@@ -18,14 +18,12 @@
       Rescore all</button>
   </form>
 </div>
+<p class="sub" id="poll-status">{{ poll_progress.text }}</p>
+<p class="sub" id="ai-status">{{ ai_progress.text }}</p>
 {% if ai_progress.running %}
 <p class="sub"><strong>Reading the {{ ai_progress.total }} posting(s) the model had not
 read before.</strong> Jobs already carrying an AI score are untouched. This runs
-in the background at roughly 11 seconds each, four at a time. Reload this page
-to see scores appear.</p>
-{% elif ai_progress.done %}
-<p class="sub">Model read {{ ai_progress.done }} posting(s){% if ai_progress.failed %},
-{{ ai_progress.failed }} failed{% endif %}.</p>
+in the background at roughly 11 seconds each, four at a time.</p>
 {% endif %}
 {% if search_available %}
 <p class="sub">Searching polls {{ pollable|length }} employer(s):
@@ -120,4 +118,37 @@ survives even if the URL cannot be fetched at all.</p>
   {% endfor %}
 </table>
 {% else %}<p class="empty">Nothing spotted. Add one above.</p>{% endif %}
+
+<script>
+// Keep the two status lines current while a search or a read is going. Only
+// those lines are touched: a reload here would wipe a half-typed "Add a job"
+// form and jump you back to the top every couple of seconds.
+(function () {
+  var poll = document.getElementById('poll-status');
+  var ai = document.getElementById('ai-status');
+  var timer = null;
+  var wasSearching = false;
+
+  function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+  function tick() {
+    fetch('/api/progress')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        poll.textContent = d.poll.text;
+        ai.textContent = d.ai.text;
+        // A finished search has spotted rows this page never rendered, so the
+        // table below is stale. Reload only on that transition — a page opened
+        // long after the last search must not reload itself forever.
+        if (wasSearching && !d.poll.running) { window.location.reload(); return; }
+        wasSearching = d.poll.running;
+        if (!d.poll.running && !d.ai.running) stop();
+      })
+      .catch(stop);  // server stopped — go quiet rather than retry forever
+  }
+
+  timer = setInterval(tick, 2000);
+  tick();
+})();
+</script>
 {% endblock %}

@@ -21,6 +21,12 @@ URL, re-check links), **Interested** (shortlisted, with priority and notes),
 **Applied** (grouped by stage, with staleness), **Archive** (ruled out, with
 reasons), **Deadlines** (recurring cycles).
 
+**Search now** and **Rescore all** run in the background and report what they are
+doing under the buttons — which employer is being polled and what it has found,
+or how many postings the model has read of the total. A search that finishes
+reloads the page so the new rows appear. Both refuse a second start while one is
+already going.
+
 The server binds loopback only and refuses anything else. This database holds your
 whole job search; a typo should not put it on your network.
 

@@ -20,6 +20,7 @@ from jobhunt.snapshot import fetch_text, save_snapshot
 from jobhunt.sources.manual import posting_from_url
 from jobhunt.store import Store
 from jobhunt.web.deps import Deps
+from jobhunt.web.progress import ADVICE, POLL, PROGRESS
 from jobhunt.web.views import (
     TABS, advice_context, applied_context, archive_context, deadlines_context,
     interested_context, overview_context, render_tab, search_context,
@@ -37,33 +38,6 @@ CONTEXT_BUILDERS = {
 
 KNOWN_TABS = {slug for slug, _, _ in TABS}
 SEE_OTHER = 303
-
-
-class Progress:
-    """Status of the background AI read, for the page to display.
-
-    A single local user runs one of these at a time, so a module-level record
-    is enough; there is no queue and nothing to persist. Starting a second run
-    while one is going is refused rather than doubling the API usage.
-    """
-
-    def __init__(self) -> None:
-        self.running = False
-        self.total = 0
-        self.done = 0
-        self.failed = 0
-
-    def start(self, total: int) -> None:
-        self.running, self.total, self.done, self.failed = True, total, 0, 0
-
-    def finish(self, done: int, failed: int) -> None:
-        self.running, self.done, self.failed = False, done, failed
-
-
-PROGRESS = Progress()
-# The whole-set briefing is one call, but a slow one — a long prompt and a long
-# answer. It gets its own record so it can run while postings are being read.
-ADVICE = Progress()
 
 
 def _write_briefing(deps: Deps, llm, scope: str) -> None:
@@ -100,12 +74,31 @@ def _read_all(deps: Deps, cfg, llm, jobs) -> None:
     try:
         report = enrich_jobs(store, jobs, deps.profile(), llm,
                              fetch_posting_text, _now(), client=client,
-                             weights=cfg.weights)
+                             weights=cfg.weights, on_done=PROGRESS.step)
         PROGRESS.finish(report.analysed, len(report.failed))
     except Exception:
         PROGRESS.finish(PROGRESS.done, PROGRESS.failed)
         raise
     finally:
+        close = getattr(client, "close", None)
+        if close:
+            close()
+        store.close()
+
+
+def _poll_all(deps: Deps, cfg, comp_cfg, cities) -> None:
+    """Sweep every polled employer off the request thread.
+
+    Its own store and client, for the same reason as _read_all: a SQLite
+    connection belongs to the thread that opened it.
+    """
+    store = deps.store_factory()
+    client = deps.http_client()
+    try:
+        poll_all(store, SOURCE_REGISTRY, client, cfg, comp_cfg, cities,
+                 now=_now(), on_start=POLL.starting, on_done=POLL.completed)
+    finally:
+        POLL.finish()
         close = getattr(client, "close", None)
         if close:
             close()
@@ -212,6 +205,16 @@ def create_app(deps: Deps) -> FastAPI:
     @app.get("/", response_class=RedirectResponse)
     def root() -> RedirectResponse:
         return RedirectResponse("/overview", status_code=SEE_OTHER)
+
+    @app.get("/api/progress")
+    def progress() -> dict:
+        """What the two long actions are doing, for the page's poller.
+
+        Two path segments, so the /{slug} tab route cannot shadow it. Each
+        record ships its own rendered sentence: the wording belongs in Python,
+        not duplicated into JavaScript.
+        """
+        return {"poll": POLL.as_dict(), "ai": PROGRESS.as_dict()}
 
     @app.get("/{slug}", response_class=HTMLResponse)
     def tab(slug: str) -> HTMLResponse:
@@ -399,20 +402,26 @@ def create_app(deps: Deps) -> FastAPI:
 
     @app.post("/actions/search")
     def search(return_to: str = Form("search")) -> RedirectResponse:
+        """Sweep the polled employers in the background.
+
+        A sweep is minutes of network, so the browser is sent straight back to
+        the page and the progress line reports which employer is being fetched.
+        A second click while one is running is refused rather than hammering
+        every board twice.
+        """
         cfg = load_scoring(deps.config_dir / "scoring.yaml")
         comp_cfg = load_comp(deps.config_dir / "comp.yaml")
         cities = load_cities(deps.config_dir / "cities.yaml")
 
         store = deps.store_factory()
-        client = deps.http_client()
         try:
-            poll_all(store, SOURCE_REGISTRY, client, cfg, comp_cfg, cities,
-                     now=_now())
+            pollable = len([e for e in store.list_employers() if e.poll_enabled])
         finally:
-            close = getattr(client, "close", None)
-            if close:
-                close()
             store.close()
+
+        if pollable and not POLL.running:
+            POLL.start(pollable)
+            deps.background(lambda: _poll_all(deps, cfg, comp_cfg, cities))
         return RedirectResponse(_safe_return(return_to), status_code=SEE_OTHER)
 
     return app

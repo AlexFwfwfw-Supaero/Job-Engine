@@ -15,6 +15,7 @@ from jobhunt.score import compensation
 from jobhunt.staleness import due_jobs
 from jobhunt.store import Store
 from jobhunt.web.deps import Deps
+from jobhunt.web.progress import ADVICE, POLL, PROGRESS
 
 # (slug, label, blurb) — the blurb is what the Overview tab explains.
 TABS = [
@@ -141,13 +142,6 @@ def _linkedin_groups(cfg, cities) -> list[tuple[str, list]]:
     return _group_links(build_links(cfg, locations_from_cities(cities)))
 
 
-def ai_progress():
-    """Imported lazily: views must not depend on the app module at import."""
-    from jobhunt.web.app import PROGRESS
-
-    return PROGRESS
-
-
 def search_context(store: Store, deps: Deps) -> dict:
     jobs = store.list_jobs(stage=Stage.SPOTTED)
     employers = store.list_employers()
@@ -157,7 +151,10 @@ def search_context(store: Store, deps: Deps) -> dict:
         "linkedin_groups": _linkedin_groups(cfg, cities),
         "consultancy_groups": _group_links(company_links(cfg)),
         "ai_available": deps.llm() is not None,
-        "ai_progress": ai_progress(),
+        # Rendered on first paint so the status is right without JavaScript;
+        # the page's poller rewrites the same two lines from /api/progress.
+        "ai_progress": PROGRESS,
+        "poll_progress": POLL,
         "tabs": TABS,
         "active": "search",
         "rows": _rows(store, jobs, deps),
@@ -206,12 +203,6 @@ def deadlines_context(store: Store, deps: Deps) -> dict:
     }
 
 
-def advice_progress():
-    from jobhunt.web.app import ADVICE
-
-    return ADVICE
-
-
 def advice_context(store: Store, deps: Deps) -> dict:
     briefing = store.latest_briefing()
     jobs = store.list_jobs()
@@ -220,7 +211,7 @@ def advice_context(store: Store, deps: Deps) -> dict:
         "active": "advice",
         "briefing": briefing,
         "ai_available": deps.llm() is not None,
-        "ai_progress": advice_progress(),
+        "ai_progress": ADVICE,
         "job_count": len(jobs),
         "shortlist_count": len([j for j in jobs if j.stage is Stage.SHORTLISTED]),
         "unread_count": len([j for j in jobs if j.llm_fit is None]),

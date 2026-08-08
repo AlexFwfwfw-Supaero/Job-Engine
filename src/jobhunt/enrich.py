@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from typing import Callable
 
 from jobhunt.llm import analyse
 from jobhunt.models import Job
@@ -45,6 +46,7 @@ def enrich_jobs(
     client=None,
     workers: int = DEFAULT_WORKERS,
     weights: dict | None = None,
+    on_done: Callable[[], None] | None = None,
 ) -> EnrichReport:
     """Analyse each job, fetching its posting text first if we do not have it.
 
@@ -56,6 +58,10 @@ def enrich_jobs(
 
     A job that fails — dead link, unparseable reply — is recorded and the run
     continues. One broken posting must not abandon the rest of the batch.
+
+    on_done fires once per finished job, success or failure, so a caller can
+    report "5/39" while the batch is still going. It runs on the calling
+    thread, in the same serial loop as the database write.
     """
     report = EnrichReport()
 
@@ -85,6 +91,8 @@ def enrich_jobs(
                 text, verdict = future.result()
             except Exception as exc:
                 report.failed.append(f"{job.url}: {type(exc).__name__}: {exc}")
+                if on_done:
+                    on_done()
                 continue
             rank = None
             if weights:
@@ -93,4 +101,6 @@ def enrich_jobs(
             store.save_enrichment(job.id, text, verdict.domain_fit,
                                   verdict.to_json(), now, rank)
             report.analysed += 1
+            if on_done:
+                on_done()
     return report

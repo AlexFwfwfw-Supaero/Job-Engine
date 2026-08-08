@@ -194,29 +194,45 @@ def poll_all(
     cities: dict[str, City],
     now: str,
     only: str | None = None,
+    on_start: Callable[[str], None] | None = None,
+    on_done: Callable[[PollReport], None] | None = None,
     **common_kwargs,
 ) -> list[PollReport]:
     """Poll every employer with polling enabled.
 
     A source that fails is recorded against that employer and the sweep
     continues — one broken parser must not look like a quiet market.
+
+    A sweep takes minutes, so callers who want to say what is happening pass
+    on_start (about to fetch this employer) and on_done (here is its report).
+    Both fire for a failing source too, otherwise the count would stall on
+    whichever employer broke.
     """
     reports: list[PollReport] = []
+
+    def record(report: PollReport) -> None:
+        reports.append(report)
+        if on_done:
+            on_done(report)
+
     for employer in store.list_employers():
         if only and employer.name != only:
             continue
         if not employer.poll_enabled:
             continue
 
+        if on_start:
+            on_start(employer.name)
+
         source = registry.get(employer.ats)
         if source is None:
-            reports.append(PollReport(
+            record(PollReport(
                 employer=employer.name, source=employer.ats,
                 error=f"no source module for ats '{employer.ats}'",
             ))
             continue
 
-        reports.append(poll_employer(
+        record(poll_employer(
             store, employer, source, client, cfg, comp_cfg, cities, now,
             **source_kwargs(employer.ats, cfg, common_kwargs),
         ))

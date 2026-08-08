@@ -111,6 +111,34 @@ def test_enrich_records_a_failure_without_stopping_the_run(store):
     assert "https://x/1" in report.failed[0]
 
 
+def test_enrich_reports_each_finished_job(store):
+    """So a caller can say "5/39" while the batch is still running."""
+    for n in range(3):
+        add(store, url=f"https://x/{n}")
+
+    ticks = []
+    enrich_jobs(store, store.list_jobs(), PROFILE, FakeLLM(), FakeFetcher(),
+                now="t", on_done=lambda: ticks.append(1))
+    assert len(ticks) == 3
+
+
+def test_enrich_reports_a_failed_job_too(store):
+    """A batch of failures must still reach its total, not stall part-way."""
+    add(store, url="https://x/1")
+    add(store, title="Radar Engineer", url="https://x/2")
+
+    class Flaky(FakeFetcher):
+        def __call__(self, job, client=None):
+            if job.url == "https://x/1":
+                raise RuntimeError("404")
+            return self.text
+
+    ticks = []
+    enrich_jobs(store, store.list_jobs(), PROFILE, FakeLLM(), Flaky(), now="t",
+                on_done=lambda: ticks.append(1))
+    assert len(ticks) == 2
+
+
 def test_enrich_never_overwrites_the_rule_based_score(store):
     job_id = store.upsert_job(Job(
         employer_id=1, title="GNSS Engineer", url="https://x/9", city="Toulouse",
