@@ -171,7 +171,12 @@ def search_context(store: Store, deps: Deps,
     employers = store.list_employers()
     pollable = [e for e in employers if e.poll_enabled]
     cfg, _comp_cfg, cities = _load_config(deps)
+    # What each read button would cost, so the labels can say it rather than
+    # leaving you to guess whether a click is ten calls or three hundred.
+    readable = store.list_jobs()
     return {
+        "unread_count": len([j for j in readable if j.llm_checked is None]),
+        "readable_count": len(readable),
         "linkedin_groups": _linkedin_groups(cfg, cities),
         "consultancy_groups": _group_links(company_links(cfg)),
         "ai_available": deps.llm() is not None,

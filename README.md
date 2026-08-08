@@ -28,11 +28,17 @@ with unread jobs last — use it when a good reading is being buried by a weak
 salary band. *Score* is the rule-based number from before the model read
 anything.
 
-**Search now** and **Rescore all** run in the background and report what they are
-doing under the buttons — which employer is being polled and what it has found,
-or how many postings the model has read of the total. A search that finishes
-reloads the page so the new rows appear. Both refuse a second start while one is
-already going.
+**Search now**, **Read new** and **Reread all** run in the background and report
+what they are doing under the buttons — which employer is being polled and what
+it has found, or how many postings the model has read of the total, with the
+reason beside anything that failed. A search that finishes reloads the page so
+the new rows appear. Each refuses a second start while one is already going.
+
+**Read new** reads only postings the model has never seen. **Reread all** reads
+every non-archived posting again, which is what you want after changing the
+screening prompt or your profile: an old verdict was reached under different
+instructions and will not update on its own. It asks first, because it spends
+one model call per job.
 
 The server binds loopback only and refuses anything else. This database holds your
 whole job search; a typo should not put it on your network.
@@ -96,7 +102,7 @@ read it, answering what a keyword list cannot: whether it is really navigation
 work, whether "junior" is actually junior, whether German is required or merely
 welcome, and what to lead with.
 
-    jobs enrich --stage shortlisted --limit 20   # ~11s per posting, 4 at a time
+    jobs enrich --stage shortlisted --limit 20   # 20-50s per posting, 4 at a time
     jobs insights 43                            # what it concluded about one job
     jobs advise                                 # read across the whole set
 

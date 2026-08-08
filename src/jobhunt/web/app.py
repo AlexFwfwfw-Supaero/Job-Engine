@@ -67,15 +67,16 @@ def _places(deps: Deps) -> str:
     )
 
 
-def _read_all(deps: Deps, cfg, llm, jobs) -> None:
-    """Have the model read every unread job. Runs off the request thread, so
+def _read_all(deps: Deps, cfg, llm, jobs, force: bool = False) -> None:
+    """Have the model read the given jobs. Runs off the request thread, so
     it opens its own store: SQLite connections belong to one thread."""
     store = deps.store_factory()
     client = deps.http_client()
     try:
         report = enrich_jobs(store, jobs, deps.profile(), llm,
                              fetch_posting_text, _now(), client=client,
-                             weights=cfg.weights, on_done=PROGRESS.step)
+                             weights=cfg.weights, on_done=PROGRESS.step,
+                             force=force)
         PROGRESS.finish(report.analysed, report.failed)
     except Exception:
         PROGRESS.finish(PROGRESS.done, PROGRESS.failures)
@@ -323,6 +324,10 @@ def create_app(deps: Deps) -> FastAPI:
                        "CLI (uses your Claude plan) or set ANTHROPIC_API_KEY. "
                        "Everything else in the tracker works without either.",
             )
+        # Without the weights, save_enrichment leaves rank_score alone: a
+        # re-read updated the model's fit but not the number the lists sort
+        # by, so one row drifted out of order with the rest.
+        cfg = load_scoring(deps.config_dir / "scoring.yaml")
         store = deps.store_factory()
         client = deps.http_client()
         try:
@@ -330,7 +335,7 @@ def create_app(deps: Deps) -> FastAPI:
             if job is None:
                 raise HTTPException(status_code=404, detail=f"no job {job_id}")
             enrich_jobs(store, [job], deps.profile(), llm, fetch_posting_text, _now(),
-                        force=True, client=client)
+                        force=True, client=client, weights=cfg.weights)
         finally:
             close = getattr(client, "close", None)
             if close:
@@ -339,28 +344,40 @@ def create_app(deps: Deps) -> FastAPI:
         return RedirectResponse(_safe_return(return_to), status_code=SEE_OTHER)
 
     @app.post("/actions/rescore")
-    def rescore(return_to: str = Form("search")) -> RedirectResponse:
-        """Re-apply the rules, then have the model read everything it has not.
+    def rescore(
+        return_to: str = Form("search"), force: str = Form(""),
+    ) -> RedirectResponse:
+        """Re-apply the rules, then have the model read.
 
-        The rule pass is fast and runs inline. The model pass is not — around
-        eleven seconds per posting, four at a time — so it runs in the
+        Two buttons post here. "Read new" reads only the postings that have
+        never been read — the cheap, everyday pass. "Reread all" sets force and
+        reads everything again, which is what you want after changing the
+        screening prompt or the profile: an old verdict was reached under
+        different instructions and will not update on its own.
+
+        The rule pass is fast and runs inline. The model pass is not — twenty
+        to fifty seconds per posting, four at a time — so it runs in the
         background and the page reports progress rather than the browser
-        waiting several minutes for a response.
+        waiting out a run that can take half an hour.
         """
         cfg = load_scoring(deps.config_dir / "scoring.yaml")
         comp_cfg = load_comp(deps.config_dir / "comp.yaml")
         cities = load_cities(deps.config_dir / "cities.yaml")
+        redo = force == "1"
         store = deps.store_factory()
         try:
             rescore_all(store, cfg, comp_cfg, cities)
-            unread = [j for j in store.list_jobs() if j.llm_checked is None]
+            jobs = store.list_jobs()
+            # Archived jobs are excluded either way: rereading a posting you
+            # already ruled out spends a call to change nothing.
+            pending = jobs if redo else [j for j in jobs if j.llm_checked is None]
         finally:
             store.close()
 
         llm = deps.llm()
-        if llm is not None and unread and not PROGRESS.running:
-            PROGRESS.start(len(unread))
-            deps.background(lambda: _read_all(deps, cfg, llm, unread))
+        if llm is not None and pending and not PROGRESS.running:
+            PROGRESS.start(len(pending))
+            deps.background(lambda: _read_all(deps, cfg, llm, pending, force=redo))
         return RedirectResponse(_safe_return(return_to), status_code=SEE_OTHER)
 
     @app.post("/actions/advise")

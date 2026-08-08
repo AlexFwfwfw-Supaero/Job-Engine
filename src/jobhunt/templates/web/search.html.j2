@@ -14,8 +14,17 @@
   </form>
   <form method="post" action="/actions/rescore">
     <input type="hidden" name="return_to" value="search">
-    <button type="submit" title="Re-apply the rules to every job, then have the model read only the postings it has not read before. Already-read jobs are left alone — use Re-read on a row to redo one.">
-      Rescore all</button>
+    <button type="submit" {{ 'disabled' if ai_progress.running else '' }}
+      title="Re-apply the rules to every job, then have the model read only the postings it has never read. Already-read jobs are left alone.">
+      Read new{% if unread_count %} ({{ unread_count }}){% endif %}</button>
+  </form>
+  <form method="post" action="/actions/rescore"
+    onsubmit="return confirm('Re-read all {{ readable_count }} postings? This spends {{ readable_count }} model calls and takes around {{ (readable_count * 7 / 60)|round|int }} minutes.')">
+    <input type="hidden" name="return_to" value="search">
+    <input type="hidden" name="force" value="1">
+    <button type="submit" {{ 'disabled' if ai_progress.running else '' }}
+      title="Read every posting again from scratch, including ones already read. Do this after changing the screening prompt or your profile — an old verdict was reached under different instructions and will not update on its own.">
+      Reread all{% if readable_count %} ({{ readable_count }}){% endif %}</button>
   </form>
 </div>
 <p class="sub" id="poll-status">{{ poll_progress.text }}</p>

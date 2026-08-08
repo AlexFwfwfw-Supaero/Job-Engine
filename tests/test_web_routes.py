@@ -309,7 +309,7 @@ class _StubLLM:
 
 
 def test_rescore_action_also_has_the_model_read_unread_jobs(deps, db_path):
-    """'Rescore all' means the model reads everything, not just a rule pass."""
+    """'Read new' means the model reads too, not just a rule pass."""
     from fastapi.testclient import TestClient
 
     from jobhunt.web.app import create_app

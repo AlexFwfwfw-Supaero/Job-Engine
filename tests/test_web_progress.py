@@ -1,4 +1,4 @@
-"""The live status lines under 'Search now' and 'Rescore all'."""
+"""The live status lines under the Job Search buttons."""
 
 from datetime import date
 
@@ -265,3 +265,91 @@ def test_the_search_page_renders_the_status_lines(client):
     assert 'id="ai-status"' in page
     # Rendered server-side, so the status is right with JavaScript off.
     assert "Polled 1 employer(s)" in page
+
+
+# --- the two read buttons ----------------------------------------------
+
+class _StubLLM:
+    def __init__(self):
+        self.calls = 0
+
+    def complete(self, prompt):
+        self.calls += 1
+        return '{"relevant": true, "domain_fit": 0.7, "reason": "r", "angle": "a"}'
+
+
+def _two_jobs(db_path, read_one: bool):
+    from jobhunt.models import Job
+
+    store = Store(db_path)
+    store.initialize()
+    ids = [store.upsert_job(Job(
+        employer_id=1, title="GNSS Engineer", url=f"https://x/{n}",
+        country="ES", source="manual", first_seen="t", last_seen="t",
+        description="Galileo receiver work. " * 20)) for n in range(2)]
+    if read_one:
+        store.save_enrichment(ids[0], "text", 0.4, '{"domain_fit": 0.4}', "t")
+    return store, ids
+
+
+def test_read_new_leaves_already_read_jobs_alone(deps, db_path):
+    store, _ = _two_jobs(db_path, read_one=True)
+    llm = _StubLLM()
+    deps.llm = lambda: llm
+    client = TestClient(create_app(deps), follow_redirects=False)
+
+    assert client.post("/actions/rescore",
+                       data={"return_to": "search"}).status_code == 303
+    assert llm.calls == 1
+    store.close()
+
+
+def test_reread_all_redoes_the_jobs_already_read(deps, db_path):
+    """A verdict reached under an older prompt will not update on its own."""
+    store, _ = _two_jobs(db_path, read_one=True)
+    llm = _StubLLM()
+    deps.llm = lambda: llm
+    client = TestClient(create_app(deps), follow_redirects=False)
+
+    assert client.post("/actions/rescore",
+                       data={"return_to": "search", "force": "1"}
+                       ).status_code == 303
+    assert llm.calls == 2
+    store.close()
+
+
+def test_reread_all_skips_archived_jobs(deps, db_path):
+    """Rereading something you already ruled out spends a call to change nothing."""
+    store, ids = _two_jobs(db_path, read_one=False)
+    store.archive_job(ids[0], "not navigation", ts="t")
+    llm = _StubLLM()
+    deps.llm = lambda: llm
+    client = TestClient(create_app(deps), follow_redirects=False)
+
+    client.post("/actions/rescore", data={"return_to": "search", "force": "1"})
+    assert llm.calls == 1
+    store.close()
+
+
+def test_the_buttons_say_what_each_would_cost(deps, db_path):
+    store, _ = _two_jobs(db_path, read_one=True)
+    store.close()
+    page = TestClient(create_app(deps)).get("/search").text
+    assert "Read new (1)" in page
+    assert "Reread all (2)" in page
+
+
+def test_a_re_read_of_one_row_also_updates_what_the_lists_sort_by(deps, db_path):
+    """Without the weights, save_enrichment leaves rank_score untouched and
+    that one row drifts out of order with the rest."""
+    store, ids = _two_jobs(db_path, read_one=True)
+    before = store.get_job(ids[0]).rank_score
+    deps.llm = lambda: _StubLLM()
+    client = TestClient(create_app(deps), follow_redirects=False)
+
+    assert client.post(f"/jobs/{ids[0]}/analyse",
+                       data={"return_to": "search"}).status_code == 303
+    after = store.get_job(ids[0])
+    assert after.llm_fit == 0.7
+    assert after.rank_score != before
+    store.close()
