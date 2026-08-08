@@ -45,5 +45,28 @@
     {% endfor %}
   </nav>
   {% block content %}{% endblock %}
+  <script>
+  // Every triage button posts and redirects, so the browser loads a fresh
+  // document and lands at the top. Three decisions down a long list and you
+  // have lost your place. Remember where you were on the way out and go back
+  // there on the way in.
+  //
+  // The row you just acted on is usually gone — that is the point of triage —
+  // so there is no anchor to jump to. Restoring the offset keeps the next
+  // undecided job under the cursor, which is what you actually want.
+  (function () {
+    var key = 'scroll:' + location.pathname;
+    // Capture phase, so it still records if something stops the event later.
+    addEventListener('submit', function () {
+      sessionStorage.setItem(key, String(window.scrollY));
+    }, true);
+
+    var saved = sessionStorage.getItem(key);
+    if (saved !== null) {
+      sessionStorage.removeItem(key);  // only restore the trip we just made
+      window.scrollTo(0, parseInt(saved, 10));
+    }
+  })();
+  </script>
 </body>
 </html>
