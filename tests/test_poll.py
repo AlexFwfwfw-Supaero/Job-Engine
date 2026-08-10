@@ -465,7 +465,7 @@ def test_a_title_the_matcher_cannot_decide_has_its_advert_fetched(
     way a French board titles real work — was being discarded unread."""
     store.upsert_employer(Employer(name="Safran"))
     reader = DetailReader({
-        "https://s/0": "Conception de récepteurs GNSS embarqués. " * 8})
+        "https://s/0": "Conception de récepteurs GNSS pour la navigation. " * 8})
 
     report = poll_employer(
         store, Employer(name="Safran"), _bare_rows("Ingenieur etudes F/H"),
@@ -561,7 +561,7 @@ def test_a_detail_page_that_fails_does_not_stop_the_sweep(
     def angry(url, client):
         if url == "https://s/0":
             raise RuntimeError("502")
-        return "Conception de récepteurs GNSS."
+        return "Conception de récepteurs GNSS pour la navigation. " * 8
 
     report = poll_employer(
         store, Employer(name="Safran"), _bare_rows("A F/H", "B F/H"),
@@ -588,7 +588,7 @@ def test_poll_all_hands_a_bare_board_its_advert_reader(store, cfg, comp_cfg, cit
 
     def reader(url, client):
         read.append(url)
-        return "Conception de récepteurs GNSS embarqués. " * 8
+        return "Conception de récepteurs GNSS pour la navigation. " * 8
 
     poll_all(store, {"talentsoft": _bare_rows("Ingenieur etudes F/H")}, None,
              cfg, comp_cfg, cities, now="2026-08-10T00:00:00Z",

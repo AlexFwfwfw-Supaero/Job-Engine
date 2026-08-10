@@ -260,8 +260,8 @@ def test_accents_are_folded_so_one_spelling_covers_both():
     assert fold("Störunterdrückung") == "storunterdruckung"
 
     cfg = _live_cfg()
-    accented = evaluate("Ingénieur", "Fusion de données inertielles", "FR", cfg)
-    plain = evaluate("Ingenieur", "Fusion de donnees inertielles", "FR", cfg)
+    accented = evaluate("Ingénieur", "Fusion de données pour la navigation inertielle", "FR", cfg)
+    plain = evaluate("Ingenieur", "Fusion de donnees pour la navigation inertielle", "FR", cfg)
     assert accented.role_fit == plain.role_fit > 0
 
 
@@ -393,3 +393,31 @@ def test_qualified_integrity_still_matches():
     cfg = _live_cfg()
     body = "Design of integrity monitoring for a civil aviation GNSS receiver."
     assert evaluate("PNT Engineer", body, "FR", cfg).role_fit > 0.0
+
+
+def test_one_keyword_deep_in_an_advert_is_not_enough_on_its_own():
+    """Reading full adverts made this the dominant kind of false positive.
+    A mechanical design advert says "GPS" meaning Geometrical Product
+    Specification; a shipping role says "receiving"; a training administrator
+    says users have "navigation queries" in the LMS. Each is one word in two
+    thousand, and each was scoring as navigation work."""
+    cfg = _live_cfg()
+    body = ("Conception mécanique de pièces moteur, cotation fonctionnelle et "
+            "spécification géométrique GPS selon ISO 1101. Calculs de "
+            "dimensionnement et revues de définition.")
+    assert evaluate("Ingénieur conception mécanique", body, "FR", cfg).role_fit == 0.0
+
+
+def test_two_keywords_in_an_advert_are_enough():
+    """Real work says it more than once, and in more than one way."""
+    cfg = _live_cfg()
+    body = ("Vous rejoignez l'équipe navigation inertielle et contribuez au "
+            "traitement du signal des récepteurs GNSS embarqués.")
+    assert evaluate("Ingénieur études F/H", body, "FR", cfg).role_fit > 0.0
+
+
+def test_the_title_still_speaks_for_itself():
+    """A title is written about the job, so one keyword there stands alone —
+    unlike one buried in a page of corporate description."""
+    cfg = _live_cfg()
+    assert evaluate("Ingénieur GNSS F/H", "", "FR", cfg).role_fit > 0.0

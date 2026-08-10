@@ -40,9 +40,10 @@ def rescore_all(
     for job in store.list_jobs(include_dismissed=True):
         if job.id is None:
             continue
-        # Descriptions are not stored, so this matches on the title alone —
-        # the same signal most sources give us at poll time anyway.
-        match = evaluate(job.title, "", job.country, cfg)
+        # Where an advert was stored, it is the same text the poll judged the
+        # job on, and dropping it here would zero jobs that match on it. Most
+        # jobs still have none, and those fall back to the title.
+        match = evaluate(job.title, job.description or "", job.country, cfg)
         city = cities.get(job.city.lower()) if job.city else None
         breakdown = compensation(job.country, job.level, job.salary_stated,
                                  comp_cfg, city, cfg)

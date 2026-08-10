@@ -19,7 +19,7 @@ def cfg():
     return ScoringConfig(
         weights={"comp": 0.3, "qol": 0.2, "fit": 0.5},
         qol_weights={"sunshine": 0.5, "nature": 0.3, "rent": 0.2},
-        role_families=[RoleFamily("gnss", 1.0, ["gnss"])],
+        role_families=[RoleFamily("gnss", 1.0, ["gnss", "navigation", "recepteur"])],
         role_modifiers=RoleModifiers(weight=0.2, keywords=["research"]),
     )
 
@@ -116,3 +116,21 @@ def test_listing_sorts_by_the_ai_fit_not_the_keyword_fit(store, cfg, comp_cfg):
     store.save_enrichment(weak_title, "t", 0.95, '{"domain_fit": 0.95}', "t")
     rescore_all(store, cfg, comp_cfg, {})
     assert [j.id for j in store.list_jobs()] == [weak_title, strong_title]
+
+
+def test_rescore_uses_the_stored_advert_when_there_is_one(store, cfg, comp_cfg):
+    """Rescoring matched on the title alone, which was fair when no source
+    carried an advert. Now that boards whose rows carry none have theirs
+    fetched and stored, throwing that text away zeroes jobs that match."""
+    from jobhunt.models import Employer, Job
+
+    eid = store.upsert_employer(Employer(name="Safran"))
+    store.upsert_job(Job(
+        employer_id=eid, title="Ingénieur études F/H", url="https://s/1",
+        country="FR",
+        description="Conception de récepteurs GNSS pour la navigation. " * 8,
+    ))
+
+    rescore_all(store, cfg, comp_cfg, {})
+
+    assert store.list_jobs()[0].role_fit > 0

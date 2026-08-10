@@ -115,6 +115,31 @@ def _family_score(family: RoleFamily, title: str, description: str) -> float:
     return saturated * family.weight
 
 
+# Distinct keywords a posting must hit when the only evidence is in the body.
+CORROBORATION = 2
+
+
+def _has_enough_evidence(cfg: ScoringConfig, title_l: str, desc_l: str) -> bool:
+    """Whether the keywords found are worth believing.
+
+    A title is written about the job, so one keyword there stands for itself.
+    A two-thousand-word advert is not: it describes the division, the site,
+    the tooling and the legal entity, and somewhere in all that one domain
+    word turns up by accident. Reading full adverts made that the dominant
+    false positive — "GPS" in a mechanical design advert is Geometrical
+    Product Specification, "receiving" is a loading bay, and a training
+    administrator supports users with "navigation queries".
+
+    So body-only evidence has to corroborate itself: two distinct keywords,
+    counted across all families because "gnss" plus "navigation" is exactly
+    the pair that should pass.
+    """
+    keywords = [k for family in cfg.role_families for k in family.keywords]
+    if any(_matches(k, title_l) for k in keywords):
+        return True
+    return len({k for k in keywords if _matches(k, desc_l)}) >= CORROBORATION
+
+
 def evaluate(
     title: str, description: str, country: str, cfg: ScoringConfig
 ) -> MatchResult:
@@ -135,6 +160,10 @@ def evaluate(
                 relevant=False, role_fit=0.0,
                 reasons=[f"negative keyword in title: {negative}"],
             )
+
+    if not _has_enough_evidence(cfg, title_l, desc_l):
+        return MatchResult(relevant=False, role_fit=0.0,
+                           reasons=[NO_FAMILY_MATCHED])
 
     scores = {f.name: _family_score(f, title_l, desc_l) for f in cfg.role_families}
     matched = sorted(
