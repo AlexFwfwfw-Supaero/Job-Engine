@@ -12,6 +12,10 @@ DESCRIPTION_WEIGHT = 1.0
 # Hits needed in the title alone for a family to reach its full weight.
 SATURATION = 2.0
 
+# The one rejection an advert can overturn: the title simply said too little.
+# Callers that go and fetch a posting's own page key off this.
+NO_FAMILY_MATCHED = "no role family matched"
+
 
 @dataclass
 class MatchResult:
@@ -160,7 +164,7 @@ def evaluate(
             language_flags.append(lang)
 
     if role_fit == 0.0:
-        reasons.append("no role family matched")
+        reasons.append(NO_FAMILY_MATCHED)
 
     return MatchResult(
         relevant=role_fit > 0.0,

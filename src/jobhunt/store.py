@@ -72,6 +72,22 @@ CREATE TABLE IF NOT EXISTS briefings (
     text TEXT NOT NULL
 );
 
+-- Postings whose advert we have already gone and read on its own page.
+--
+-- Some boards list a title and nothing else — Safran's 3803 rows carry no
+-- advert at all — so a title the matcher cannot decide has to be fetched
+-- before it can be judged. That is one request per posting, and the answer
+-- for a posting that was not relevant does not change. Without this table
+-- every poll would re-read three thousand pages to reach the same verdict.
+--
+-- Rows are kept for postings that were rejected as much as for ones that were
+-- stored: the rejected ones are precisely the cost being avoided.
+CREATE TABLE IF NOT EXISTS screened (
+    url TEXT PRIMARY KEY,
+    employer_id INTEGER,
+    screened_at TEXT
+);
+
 -- Small facts about the tracker itself rather than about any one job. So far
 -- one key: last_search_at, the timestamp of the most recent poll sweep, which
 -- is what "new since the last search" is measured against.
@@ -303,6 +319,29 @@ class Store:
             (key, value),
         )
         self.conn.commit()
+
+    def mark_screened(self, url: str, employer_id: int | None,
+                      ts: str) -> None:
+        """Record that this posting's own page has been read.
+
+        Re-marking keeps the first date: what matters is that the request has
+        already been paid for, not when.
+        """
+        self.conn.execute(
+            "INSERT INTO screened (url, employer_id, screened_at) VALUES (?,?,?) "
+            "ON CONFLICT(url) DO NOTHING",
+            (url, employer_id, ts),
+        )
+        self.conn.commit()
+
+    def screened_urls(self, employer_id: int | None = None) -> set[str]:
+        if employer_id is None:
+            rows = self.conn.execute("SELECT url FROM screened")
+        else:
+            rows = self.conn.execute(
+                "SELECT url FROM screened WHERE employer_id = ?", (employer_id,)
+            )
+        return {row["url"] for row in rows}
 
     def save_briefing(self, ts: str, text: str, scope: str = "",
                       job_count: int = 0) -> int:

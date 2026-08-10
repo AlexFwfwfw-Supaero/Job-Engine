@@ -434,3 +434,192 @@ def test_poll_all_stamps_when_the_search_ran(store, cfg, comp_cfg, cities):
              now="2026-08-10T09:00:00Z")
 
     assert store.get_meta("last_search_at") == "2026-08-10T09:00:00Z"
+
+
+# --- boards whose rows carry no advert ---------------------------------
+
+def _bare_rows(*titles):
+    """A board like Safran's: a title and a URL, and nothing to judge them by."""
+    def fetch(employer, client, **kwargs):
+        return [RawPosting(source="talentsoft", url=f"https://s/{i}", title=t,
+                           employer_name=employer.name, country="FR")
+                for i, t in enumerate(titles)]
+    return fetch
+
+
+class DetailReader:
+    """Stands in for the request that goes and reads one posting's own page."""
+
+    def __init__(self, bodies):
+        self.bodies = bodies
+        self.urls = []
+
+    def __call__(self, url, client):
+        self.urls.append(url)
+        return self.bodies.get(url, "")
+
+
+def test_a_title_the_matcher_cannot_decide_has_its_advert_fetched(
+        store, cfg, comp_cfg, cities):
+    """Safran's rows carry no advert, so "Ingénieur études F/H" — the normal
+    way a French board titles real work — was being discarded unread."""
+    store.upsert_employer(Employer(name="Safran"))
+    reader = DetailReader({
+        "https://s/0": "Conception de récepteurs GNSS embarqués. " * 8})
+
+    report = poll_employer(
+        store, Employer(name="Safran"), _bare_rows("Ingenieur etudes F/H"),
+        client=None, cfg=cfg, comp_cfg=comp_cfg, cities=cities,
+        now="2026-08-10T00:00:00Z", detail_text=reader, detail_budget=10,
+    )
+
+    assert reader.urls == ["https://s/0"]
+    assert report.stored == 1
+    assert store.list_jobs()[0].description.startswith("Conception")
+
+
+def test_an_advert_that_still_does_not_match_is_not_stored_but_is_remembered(
+        store, cfg, comp_cfg, cities):
+    store.upsert_employer(Employer(name="Safran"))
+    reader = DetailReader({"https://s/0": "Vous conduirez des chariots elevateurs."})
+
+    report = poll_employer(
+        store, Employer(name="Safran"), _bare_rows("Transportfacharbeiter"),
+        client=None, cfg=cfg, comp_cfg=comp_cfg, cities=cities,
+        now="2026-08-10T00:00:00Z", detail_text=reader, detail_budget=10,
+    )
+
+    assert report.stored == 0
+    assert store.screened_urls() == {"https://s/0"}, "the request was paid for"
+
+
+def test_a_posting_already_screened_is_never_fetched_again(
+        store, cfg, comp_cfg, cities):
+    """Three thousand pages a poll, for a verdict that has not changed."""
+    eid = store.upsert_employer(Employer(name="Safran"))
+    store.mark_screened("https://s/0", employer_id=eid, ts="2026-08-01")
+    reader = DetailReader({})
+
+    poll_employer(
+        store, Employer(name="Safran"), _bare_rows("Transportfacharbeiter"),
+        client=None, cfg=cfg, comp_cfg=comp_cfg, cities=cities,
+        now="2026-08-10T00:00:00Z", detail_text=reader, detail_budget=10,
+    )
+
+    assert reader.urls == []
+
+
+def test_a_title_the_matcher_already_rejects_costs_no_request(
+        store, cfg, comp_cfg, cities):
+    """The advert cannot rescue a land surveyor, so it is not worth reading."""
+    store.upsert_employer(Employer(name="Safran"))
+    reader = DetailReader({})
+
+    poll_employer(
+        store, Employer(name="Safran"), _bare_rows("Land Surveyor F/H"),
+        client=None, cfg=cfg, comp_cfg=comp_cfg, cities=cities,
+        now="2026-08-10T00:00:00Z", detail_text=reader, detail_budget=10,
+    )
+
+    assert reader.urls == []
+
+
+def test_a_title_that_already_matches_costs_no_request(
+        store, cfg, comp_cfg, cities):
+    store.upsert_employer(Employer(name="Safran"))
+    reader = DetailReader({})
+
+    poll_employer(
+        store, Employer(name="Safran"), _bare_rows("GNSS Engineer"),
+        client=None, cfg=cfg, comp_cfg=comp_cfg, cities=cities,
+        now="2026-08-10T00:00:00Z", detail_text=reader, detail_budget=10,
+    )
+
+    assert reader.urls == []
+
+
+def test_the_detail_budget_bounds_one_poll(store, cfg, comp_cfg, cities):
+    """A first sweep of a board this size would otherwise run for half an
+    hour. The budget spends what it has and leaves the rest for next time,
+    which is safe because screening is remembered."""
+    store.upsert_employer(Employer(name="Safran"))
+    reader = DetailReader({})
+
+    poll_employer(
+        store, Employer(name="Safran"), _bare_rows("A F/H", "B F/H", "C F/H"),
+        client=None, cfg=cfg, comp_cfg=comp_cfg, cities=cities,
+        now="2026-08-10T00:00:00Z", detail_text=reader, detail_budget=2,
+    )
+
+    assert len(reader.urls) == 2
+
+
+def test_a_detail_page_that_fails_does_not_stop_the_sweep(
+        store, cfg, comp_cfg, cities):
+    store.upsert_employer(Employer(name="Safran"))
+
+    def angry(url, client):
+        if url == "https://s/0":
+            raise RuntimeError("502")
+        return "Conception de récepteurs GNSS."
+
+    report = poll_employer(
+        store, Employer(name="Safran"), _bare_rows("A F/H", "B F/H"),
+        client=None, cfg=cfg, comp_cfg=comp_cfg, cities=cities,
+        now="2026-08-10T00:00:00Z", detail_text=angry, detail_budget=10,
+    )
+
+    assert report.stored == 1
+    assert report.error is None
+
+
+def test_talentsoft_is_the_source_that_needs_its_adverts_fetched():
+    from jobhunt.poll import DETAIL_TEXT
+
+    assert "talentsoft" in DETAIL_TEXT
+
+
+def test_poll_all_hands_a_bare_board_its_advert_reader(store, cfg, comp_cfg, cities):
+    """The employer's ats decides whether its adverts have to be fetched, so
+    nothing has to be configured per employer."""
+    store.upsert_employer(Employer(name="Safran", ats="talentsoft",
+                                   poll_enabled=True, country="FR"))
+    read = []
+
+    def reader(url, client):
+        read.append(url)
+        return "Conception de récepteurs GNSS embarqués. " * 8
+
+    poll_all(store, {"talentsoft": _bare_rows("Ingenieur etudes F/H")}, None,
+             cfg, comp_cfg, cities, now="2026-08-10T00:00:00Z",
+             detail_readers={"talentsoft": reader}, detail_budget=10)
+
+    assert read == ["https://s/0"]
+
+
+def test_poll_all_leaves_other_sources_alone(store, cfg, comp_cfg, cities):
+    """Workday carries its own advert, so nothing extra is fetched for it."""
+    store.upsert_employer(Employer(name="Airbus", ats="workday",
+                                   poll_enabled=True, country="DE"))
+    read = []
+
+    poll_all(store, {"workday": fake_source([posting("Accountant", "https://x/1")])},
+             None, cfg, comp_cfg, cities, now="2026-08-10T00:00:00Z",
+             detail_readers={"talentsoft": lambda u, c: read.append(u) or ""},
+             detail_budget=10)
+
+    assert read == []
+
+
+def test_the_report_says_how_many_adverts_were_read(store, cfg, comp_cfg, cities):
+    """A poll that quietly makes six hundred extra requests should say so."""
+    store.upsert_employer(Employer(name="Safran"))
+    reader = DetailReader({})
+
+    report = poll_employer(
+        store, Employer(name="Safran"), _bare_rows("A F/H", "B F/H"),
+        client=None, cfg=cfg, comp_cfg=comp_cfg, cities=cities,
+        now="2026-08-10T00:00:00Z", detail_text=reader, detail_budget=10,
+    )
+
+    assert report.read == 2

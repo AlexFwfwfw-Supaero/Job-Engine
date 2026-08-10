@@ -118,3 +118,23 @@ def test_set_meta_overwrites_an_existing_key(store):
     store.set_meta("last_search_at", "2026-08-09T09:00:00Z")
     store.set_meta("last_search_at", "2026-08-10T09:00:00Z")
     assert store.get_meta("last_search_at") == "2026-08-10T09:00:00Z"
+
+
+def test_screened_urls_are_remembered_across_polls(store):
+    """A board that carries no advert in its rows costs one request per
+    posting to judge. The verdict on a posting that was not relevant does not
+    change, so it is only paid once."""
+    assert store.screened_urls() == set()
+
+    store.mark_screened("https://x/1", employer_id=7, ts="2026-08-10")
+    store.mark_screened("https://x/2", employer_id=7, ts="2026-08-10")
+
+    assert store.screened_urls() == {"https://x/1", "https://x/2"}
+    assert store.screened_urls(employer_id=7) == {"https://x/1", "https://x/2"}
+    assert store.screened_urls(employer_id=8) == set()
+
+
+def test_marking_a_url_screened_twice_is_harmless(store):
+    store.mark_screened("https://x/1", employer_id=7, ts="2026-08-10")
+    store.mark_screened("https://x/1", employer_id=7, ts="2026-09-01")
+    assert store.screened_urls() == {"https://x/1"}

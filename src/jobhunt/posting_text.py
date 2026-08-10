@@ -91,7 +91,7 @@ def _drop_talentsoft_furniture(text: str) -> str:
     return (text[: match.start()] if match else text or "").strip()
 
 
-def _talentsoft_text(url: str, client) -> str:
+def talentsoft_text(url: str, client) -> str:
     """The advert out of a Talentsoft detail page.
 
     The page is server-rendered but 24k characters of it are language pickers,
@@ -111,7 +111,7 @@ def fetch_posting_text(job: Job, client, html_fetcher=fetch_text) -> str:
     if job.source == "workday" and cxs_detail_url(job.url):
         text = _workday_text(job.url, client)
     elif job.source == "talentsoft":
-        text = _talentsoft_text(job.url, client)
+        text = talentsoft_text(job.url, client)
     else:
         text = strip_html(html_fetcher(job.url, client))
 

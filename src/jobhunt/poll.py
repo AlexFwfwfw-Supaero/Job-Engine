@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from typing import Callable
 
 from jobhunt.config import City, CompConfig, ScoringConfig
-from jobhunt.match import evaluate
+from jobhunt.match import NO_FAMILY_MATCHED, evaluate
 from jobhunt.models import Employer, Job
+from jobhunt.posting_text import talentsoft_text
 from jobhunt.score import compensation, quality_of_life, total_score
 from jobhunt.sources import (
     breezy, capgemini, cornerstone, euraxess, greenhouse, onera_theses, recruitee, rss,
@@ -81,6 +82,8 @@ class PollReport:
     stored: int = 0
     new: int = 0
     skipped: int = 0
+    # Adverts fetched one page at a time, for boards whose rows carry none.
+    read: int = 0
     error: str | None = None
 
 
@@ -96,6 +99,35 @@ def _stored_description(posting: RawPosting) -> str:
     if len(text) < MIN_STORED_DESCRIPTION or text == (posting.title or "").strip():
         return ""
     return text
+
+
+# Sources whose listing rows carry a title and nothing else, mapped to the
+# route that reads one posting's own page. Safran's board is 3803 rows of
+# title-only, so without this the matcher judged "Ingénieur études F/H" — the
+# ordinary way a French board titles real work — on four words.
+DETAIL_TEXT: dict[str, Callable[[str, object], str]] = {
+    talentsoft.NAME: talentsoft_text,
+}
+
+# How many adverts one poll will go and read. Screening is remembered, so a
+# board drains over a few polls instead of turning the first one into a
+# half-hour sweep.
+DEFAULT_DETAIL_BUDGET = 600
+
+
+def _worth_reading(posting: RawPosting, employer: Employer,
+                   cfg: ScoringConfig) -> bool:
+    """Whether this posting's own page is worth a request.
+
+    Only for the undecided. A title that already matches needs no help, and a
+    title the negative list or the country filter has rejected cannot be
+    rescued by its advert — reading those would spend thousands of requests to
+    confirm what is already known.
+    """
+    if posting.description.strip():
+        return False
+    match = evaluate(posting.title, "", posting.country or employer.country, cfg)
+    return not match.relevant and match.reasons[:1] == [NO_FAMILY_MATCHED]
 
 
 def _score_and_store(
@@ -149,6 +181,8 @@ def poll_employer(
     comp_cfg: CompConfig,
     cities: dict[str, City],
     now: str,
+    detail_text: Callable[[str, object], str] | None = None,
+    detail_budget: int = 0,
     **source_kwargs,
 ) -> PollReport:
     """Fetch one employer's postings, match them, and store what is relevant.
@@ -157,6 +191,11 @@ def poll_employer(
     thousands of jobs, and keeping every one would bury the pipeline; the
     report carries the seen/skipped counts so the filtering stays visible
     rather than looking like an empty market.
+
+    `detail_text` is for boards whose rows carry no advert. Where the title
+    alone says too little to decide, that posting's own page is read before
+    judging it, up to `detail_budget` pages in one poll. Which pages were read
+    is remembered, so the cost falls to the newly published ones.
     """
     report = PollReport(employer=employer.name, source=employer.ats)
 
@@ -176,12 +215,25 @@ def poll_employer(
         return report
 
     known = {j.url for j in store.list_jobs(include_dismissed=True)}
+    screened = store.screened_urls() if detail_text else set()
     report.seen = len(postings)
 
     for posting in postings:
         if not posting.url:
             report.skipped += 1
             continue
+        if (detail_text and detail_budget > 0 and posting.url not in screened
+                and _worth_reading(posting, employer, cfg)):
+            detail_budget -= 1
+            report.read += 1
+            try:
+                posting.description = detail_text(posting.url, client)
+            except Exception:
+                # One dead advert out of thousands. Marked screened all the
+                # same: retrying it every poll forever costs more than the one
+                # posting is worth, and `enrich` re-reads anything stored.
+                pass
+            store.mark_screened(posting.url, employer.id, now)
         was_known = posting.url in known
         if _score_and_store(store, employer, posting, cfg, comp_cfg, cities, now):
             report.stored += 1
@@ -204,6 +256,8 @@ def poll_all(
     only: str | None = None,
     on_start: Callable[[str], None] | None = None,
     on_done: Callable[[PollReport], None] | None = None,
+    detail_readers: dict[str, Callable] | None = None,
+    detail_budget: int = DEFAULT_DETAIL_BUDGET,
     **common_kwargs,
 ) -> list[PollReport]:
     """Poll every employer with polling enabled.
@@ -246,8 +300,11 @@ def poll_all(
             ))
             continue
 
+        readers = DETAIL_TEXT if detail_readers is None else detail_readers
         record(poll_employer(
             store, employer, source, client, cfg, comp_cfg, cities, now,
+            detail_text=readers.get(employer.ats),
+            detail_budget=detail_budget,
             **source_kwargs(employer.ats, cfg, common_kwargs),
         ))
     return reports

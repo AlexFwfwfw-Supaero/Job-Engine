@@ -15,7 +15,7 @@ from jobhunt.enrich import enrich_jobs
 from jobhunt.linkedin import build_links, locations_from_cities
 from jobhunt.links import apply_results, check_jobs
 from jobhunt.models import Stage
-from jobhunt.poll import SOURCE_REGISTRY, poll_all
+from jobhunt.poll import DEFAULT_DETAIL_BUDGET, SOURCE_REGISTRY, poll_all
 from jobhunt.report import build_context, render
 from jobhunt.rescore import rescore_all
 from jobhunt.posting_text import fetch_posting_text
@@ -255,6 +255,11 @@ def restore(job_id: int) -> None:
 def poll(
     employer: Optional[str] = typer.Option(None, "--employer", "-e"),
     max_pages: int = typer.Option(5, "--max-pages"),
+    detail_budget: int = typer.Option(
+        DEFAULT_DETAIL_BUDGET, "--detail-budget",
+        help="Adverts to fetch one page at a time, for boards whose listing "
+             "rows carry only a title. Which ones were read is remembered, so "
+             "a large board drains over several polls."),
 ) -> None:
     """Fetch new postings from every employer with polling enabled."""
     cfg, comp_cfg, cities = _load_all()
@@ -264,6 +269,7 @@ def poll(
         reports = poll_all(
             store, SOURCE_REGISTRY, client, cfg, comp_cfg, cities,
             now=_now(), only=employer, max_pages=max_pages,
+            detail_budget=detail_budget,
         )
     finally:
         close = getattr(client, "close", None)
@@ -286,6 +292,7 @@ def poll(
             f"{report.employer} [{report.source}]: seen {report.seen}, "
             f"stored {report.stored} ({report.new} new), "
             f"skipped {report.skipped}"
+            + (f", read {report.read} advert(s)" if report.read else "")
         )
     total_new = sum(r.new for r in reports)
     typer.echo(f"\n{total_new} new job(s). See them with: jobs list")
