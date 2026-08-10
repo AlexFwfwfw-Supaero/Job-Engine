@@ -80,6 +80,17 @@ negative_keywords:
   - "elektriker"
   - "schlosser"
   - "montage"
+  # Spanish, for the sitemap boards. PLD Space alone advertises eighteen
+  # shop-floor titles — laminado, autoclave, mecanizado, soldadura.
+  # "tecnico" is deliberately absent for the same reason "responsable" is:
+  # in Spain "Ingeniero Técnico" is a degree-level engineer, so rejecting the
+  # word would throw away real engineering roles to catch shop-floor ones the
+  # role families already ignore.
+  - "operario"
+  - "operaria"
+  - "soldador"
+  - "montador"
+  - "electricista"
 
   # Administration and support functions.
   - "assistant"

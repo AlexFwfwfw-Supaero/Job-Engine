@@ -68,10 +68,14 @@ employers:
      notes: "CONFIRMED 2026-07-27 — Breezy HR, whole board as JSON, no auth or
              pagination. Mostly ESA/ESTEC and EGNOS contractor posts at Noordwijk
              and Toulouse, which is why the country here is BE but the jobs are not."}
-  - {name: Telespazio France, country: FR, city: Toulouse, ats: manual, tags: [gnss, space],
+  - {name: Telespazio France, country: FR, city: Toulouse, ats: sitemap,
+     ats_endpoint: "https://careers.telespazio.fr/sitemap.xml#/jobs/",
+     poll_enabled: true, tags: [gnss, space],
      careers_url: "https://careers.telespazio.fr/jobs",
-     notes: "Teamtailor. Identified 2026-07-27; its public API needs a per-company
-             token, so manual until someone obtains one."}
+     notes: "CONFIRMED 2026-08-10 — 13 postings. Teamtailor, whose API wants a
+             per-company token we do not have; its sitemap lists every advert
+             and needs none. Slugs carry the id and title only, so the location
+             comes from the model reading the page."}
   - {name: Telespazio, country: IT, city: Rome, ats: manual, tags: [gnss, space],
      careers_url: "https://www.telespazio.com/en/careers"}
   - {name: Leonardo, country: IT, city: Rome, ats: manual, tags: [radar, defense],
@@ -135,9 +139,18 @@ employers:
              here."}
   - {name: Fraunhofer IIS, country: DE, city: Nuremberg, ats: manual, tags: [gnss, research, phd],
      careers_url: "https://www.iis.fraunhofer.de/en/jobs/stellen.html"}
-  - {name: CNES, country: FR, city: Toulouse, ats: manual, tags: [space, agency],
+  - {name: CNES, country: FR, city: Toulouse, ats: sitemap,
+     ats_endpoint: "https://recrutement.cnes.fr/sitemap.xml#/fr/annonce/",
+     poll_enabled: true, tags: [space, agency],
      careers_url: "https://recrutement.cnes.fr/en/annonces",
-     notes: "Cegid Talentsoft. Identified 2026-07-27, endpoint not mapped."}
+     notes: "CONFIRMED 2026-08-10 — 10 postings. The 2026-07-27 note saying
+             Cegid Talentsoft was wrong: it is Digital Recruiters, a Nuxt app
+             whose job-ads API base URL never resolved. The sitemap sidesteps
+             it. Slugs end in postcode and town, so the city comes free.
+             A small board, and today none of it is navigation work — it is
+             worth polling for when Galileo and flight-dynamics posts open.
+             robots.txt asks for a 10s crawl delay; one sitemap fetch per
+             sweep and ten pages of enrichment stay well inside that."}
   - {name: ONERA, country: FR, city: Palaiseau, ats: talentlink,
      ats_endpoint: "P6VFK026203F3VBQB68LOF6Z3",
      poll_enabled: true, tags: [radar, research, phd],
@@ -326,20 +339,35 @@ employers:
      tags: [launch, propulsion, sme],
      careers_url: "https://www.hyprspace.fr/",
      notes: "Hybrid propulsion. Domain did not resolve from the poller; verify."}
-  - {name: Sirius Space Services, country: FR, city: Vert-le-Petit, ats: manual,
-     tags: [launch, sme],
+  - {name: Sirius Space Services, country: FR, city: Vert-le-Petit,
+     ats: sitemap,
+     ats_endpoint: "https://www.sirius-space.com/sitemap.xml#/les-offres-sirius-en/",
+     poll_enabled: true, tags: [launch, sme],
      careers_url: "https://www.sirius-space.com/careers",
-     notes: "CONFIRMED reachable 2026-07-27. Small launcher startup."}
+     notes: "CONFIRMED 2026-08-10 — 11 postings, one of them an Avionique-GNC
+             guidance role. A sitemap index with a French board and an English
+             one holding the same jobs; the fragment picks the English half so
+             nothing is stored twice."}
   - {name: HyImpulse, country: DE, city: Neuenstadt am Kocher, ats: manual,
      tags: [launch, propulsion],
      careers_url: "https://www.hyimpulse.de/",
      notes: "CONFIRMED reachable 2026-07-27; /en/career 404s, so the careers
              page is linked from the root. German-speaking site — a real
              constraint for you."}
-  - {name: PLD Space, country: ES, city: Elche, ats: manual, tags: [launch, gnc],
+  - {name: PLD Space, country: ES, city: Elche, ats: sitemap,
+     ats_endpoint: "https://pldspace.com/sitemap.xml#/pld-space-empleo/posiciones-abiertas/",
+     poll_enabled: false, tags: [launch, gnc],
      careers_url: "https://pldspace.com/en/careers",
-     notes: "Miura launchers. Avionics and GNC roles. Spanish-speaking site,
-             which suits you. Domain did not resolve from the poller; verify."}
+     notes: "Miura launchers, Spanish-speaking site, and the largest sitemap
+             board found — 96 postings, of which 4 read as avionics. Parsed
+             and verified 2026-08-10, but left OFF: pldspace.com serves its
+             leaf certificate with no intermediate, so the chain does not
+             verify. Browsers hide this by fetching the missing certificate;
+             httpx and curl refuse, and enrichment would fail on every detail
+             page for the same reason. Not worth disabling TLS verification
+             over. The 2026-07-27 'domain did not resolve' note was this, not
+             DNS. Flip poll_enabled when they fix their chain — the endpoint
+             above is already correct."}
   - {name: Pangea Aerospace, country: ES, city: Barcelona, ats: manual,
      tags: [propulsion, sme],
      careers_url: "https://www.pangeapropulsion.com/",

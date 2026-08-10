@@ -143,8 +143,25 @@ Posting text is fetched once per job and cached. Workday pages render in
 JavaScript, so their text comes from the CXS JSON endpoint behind them rather
 than the HTML — see `src/jobhunt/posting_text.py`.
 
+## Sitemap boards
+
+Some employers have no API worth reaching but do publish every open advert in
+`sitemap.xml`, the file they hand search engines. The `sitemap` source reads
+that: the title comes from the URL slug, and everything else waits for
+enrichment to fetch the page. It reaches CNES, Telespazio France and Sirius
+today, and one more parser would reach any employer that does the same.
+
+A sitemap lists the whole site, so `ats_endpoint` carries the job path as a URL
+fragment — `https://careers.telespazio.fr/sitemap.xml#/jobs/`. A fragment is
+never sent to the server, so the whole configuration for a board fits on one
+line. Leave it out and the poll fails with that message rather than storing the
+privacy policy as a job.
+
 ## Not yet built
 
 Cornerstone (GMV, OHB) needs a session token its search API will not issue to a
 plain fetch. DLR renders its SuccessFactors results in JavaScript and its only
-no-JS feed is capped at 10 postings.
+no-JS feed is capped at 10 postings. PLD Space is parsed and configured but
+switched off: it serves its certificate without the intermediate, so the chain
+does not verify and neither the sitemap nor any posting can be fetched without
+turning TLS verification off, which is not worth 96 postings.
