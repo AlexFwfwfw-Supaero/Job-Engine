@@ -122,3 +122,33 @@ def test_fetch_posting_text_serialises_a_dict_description_safely():
     with pytest.raises(ValueError):
         fetch_posting_text(workday_job(), client)
     assert json.dumps(payload)  # payload itself stays inspectable
+
+
+TALENTSOFT_PAGE = """
+<h2 class="JobDescription">Description du poste</h2>
+<div>Intitul&eacute; du poste</div><div>Transportfacharbeiter (m/w/d)</div>
+<div>Parlons de votre future mission</div>
+<div>Transfer von Flugzeugmotoren mittels Portalkran. Staplert&auml;tigkeiten.</div>
+<div>Localisation du poste</div>
+<div>Localisation du poste</div><div>Europe, Allemagne</div>
+<div>Ville</div><div>Hambourg</div>
+<div>Crit&egrave;res candidat</div><div>Niveau d'&eacute;tudes min. requis</div>
+<div class="ts-offer-page-cta">Postuler</div>
+"""
+
+
+def talentsoft_job():
+    return Job(employer_id=1, source="talentsoft", title="Transportfacharbeiter",
+               url="https://careers.safran-group.com/offre-de-emploi/emploi-x_1.aspx")
+
+
+def test_talentsoft_text_stops_before_the_location_block():
+    """"Localisation du poste" is Talentsoft's own furniture, printed on every
+    page of the board. Kept in the body it makes `localisation` — a real
+    navigation keyword — match all 3803 of Safran's postings, so a forklift
+    driver in Hamburg scores as navigation work."""
+    text = fetch_posting_text(talentsoft_job(), FakeClient(FakeResponse(text=TALENTSOFT_PAGE)))
+
+    assert "Portalkran" in text
+    assert "Localisation" not in text
+    assert "Crit" not in text

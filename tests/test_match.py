@@ -376,3 +376,20 @@ def test_technical_leads_and_quality_engineers_survive():
         "GALILEO Engineering Work Package Manager",
     ):
         assert evaluate(title, "", "FR", cfg).relevant, title
+
+
+def test_bare_integrity_is_not_a_pnt_keyword():
+    """Structural integrity, data integrity, personal integrity — the word is
+    everywhere in engineering adverts. In PNT it only means something when it
+    is qualified, so the qualified forms are what the family carries. Safran's
+    board matched a Dynamic FEA Engineer on "structural integrity" alone."""
+    cfg = _live_cfg()
+    body = ("This position ensures the structural integrity, reliability and "
+            "performance optimization of our mechanical products.")
+    assert evaluate("Dynamic FEA Engineer", body, "FR", cfg).role_fit == 0.0
+
+
+def test_qualified_integrity_still_matches():
+    cfg = _live_cfg()
+    body = "Design of integrity monitoring for a civil aviation GNSS receiver."
+    assert evaluate("PNT Engineer", body, "FR", cfg).role_fit > 0.0

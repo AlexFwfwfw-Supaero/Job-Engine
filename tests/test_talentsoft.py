@@ -148,6 +148,53 @@ def test_families_are_walked_largest_first_for_exactly_their_page_count():
     assert families == [("4244", "1"), ("4244", "2"), ("4252", "1")]
 
 
+class FakeCookies:
+    """The session the portal keeps for us: clearing it forgets the facets."""
+
+    def __init__(self, client):
+        self.client = client
+        self.cleared = 0
+
+    def clear(self):
+        self.cleared += 1
+        self.client.active = []
+
+
+class FacetAccumulatingClient:
+    """Talentsoft keeps the active facets in the session, and `changefacet=1`
+    *adds* one rather than replacing it. A client that carries its cookies
+    from one family to the next therefore asks for family B AND family A, and
+    the walk collapses into a shrinking intersection — live, that returned
+    1133 of Safran's 3805 offers and reported no error at all.
+    """
+
+    def __init__(self, page):
+        self.page = page
+        self.active: list[str] = []
+        self.cookies = FakeCookies(self)
+        self.urls: list[str] = []
+
+    def get(self, url):
+        self.urls.append(url)
+        found = re.search(r"facet_JobFamily=(\d+)", url)
+        if found and found.group(1) not in self.active:
+            self.active.append(found.group(1))
+        # More than one facet at once is the bug: the server would answer with
+        # an intersection, so serve nothing and let the assertion catch it.
+        return FakePage(self.page if len(self.active) <= 1 else "")
+
+
+def test_each_family_is_asked_for_on_its_own_session():
+    """Without clearing the session between families, every family after the
+    first is filtered by its predecessors too."""
+    page = FIXTURE.read_text(encoding="utf-8") + FACETS
+    client = FacetAccumulatingClient(page)
+    talentsoft.fetch(employer_for_test(), client, max_pages=50)
+
+    assert client.cookies.cleared >= 2, "one session reset per family"
+    assert client.active == ["4252"], f"facets leaked: {client.active}"
+
+
 def test_the_page_budget_is_shared_across_families():
     page = FIXTURE.read_text(encoding="utf-8") + FACETS
     client = FakeClient([page])

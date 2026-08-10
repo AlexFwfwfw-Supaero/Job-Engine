@@ -309,6 +309,18 @@ def test_smartrecruiters_gets_a_page_budget_that_covers_its_board():
     assert kwargs["max_pages"] >= smartrecruiters.DEFAULT_MAX_PAGES
 
 
+def test_talentsoft_gets_a_page_budget_that_covers_safrans_board():
+    """Safran's board is 3805 offers walked one job family at a time — about
+    208 pages. The shared --max-pages of 5 would stop at the first family."""
+    from jobhunt.config import ScoringConfig
+    from jobhunt.poll import source_kwargs
+    from jobhunt.sources import talentsoft
+
+    cfg = ScoringConfig(weights={}, qol_weights={}, role_families=[])
+    kwargs = source_kwargs("talentsoft", cfg, {"max_pages": 5})
+    assert kwargs["max_pages"] >= talentsoft.DEFAULT_MAX_PAGES
+
+
 def test_an_explicit_deeper_page_budget_is_respected():
     from jobhunt.config import ScoringConfig
     from jobhunt.poll import source_kwargs

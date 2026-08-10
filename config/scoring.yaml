@@ -179,9 +179,15 @@ role_families:
                "empfanger", "signalverarbeitung", "satellitennavigation"]
   - name: pnt
     weight: 1.0
-    keywords: ["pnt", "integrity", "spoofing", "jamming", "interference",
+    # "integrity" is qualified on purpose, the same way "ppp" and "estimation"
+    # had to be: bare, it matches structural integrity, data integrity and the
+    # personal kind, and Safran's board scored an FEA engineer on it.
+    keywords: ["pnt", "integrity monitoring", "signal integrity",
+               "navigation integrity", "spoofing", "jamming", "interference",
                "anti-jam", "raim", "resilient navigation", "timing",
-               "brouillage", "anti-brouillage", "leurrage", "integrite",
+               "brouillage", "anti-brouillage", "leurrage",
+               "integrite du signal", "integrite de la navigation",
+               "surveillance d'integrite",
                "datation", "synchronisation temporelle",
                "storunterdruckung", "storfestigkeit", "zeitsynchronisation"]
   - name: navigation_systems

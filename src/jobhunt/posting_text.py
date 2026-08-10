@@ -72,6 +72,25 @@ def _workday_text(url: str, client) -> str:
     return strip_html(description)
 
 
+# Everything from here down is the form Talentsoft prints on every page:
+# location, required degree, languages, then the page's own JavaScript. The
+# advert stops here.
+_TALENTSOFT_TAIL_RE = re.compile(r"\bLocalisation du poste\b", re.I)
+
+
+def _drop_talentsoft_furniture(text: str) -> str:
+    """Cut the template block off the end of a Talentsoft advert.
+
+    Not cosmetic. The heading is literally "Localisation du poste", and
+    `localisation` is a French navigation keyword — one of the ones that make
+    ONERA's theses match. Left in, every posting on Safran's 3803-row board
+    scores as navigation work, forklift drivers included. The row already
+    carries the town, so nothing is lost by cutting here.
+    """
+    match = _TALENTSOFT_TAIL_RE.search(text or "")
+    return (text[: match.start()] if match else text or "").strip()
+
+
 def _talentsoft_text(url: str, client) -> str:
     """The advert out of a Talentsoft detail page.
 
@@ -84,7 +103,7 @@ def _talentsoft_text(url: str, client) -> str:
     response = client.get(url)
     response.raise_for_status()
     match = _TALENTSOFT_BODY_RE.search(response.text or "")
-    return strip_html(match.group(0) if match else "")
+    return _drop_talentsoft_furniture(strip_html(match.group(0) if match else ""))
 
 
 def fetch_posting_text(job: Job, client, html_fetcher=fetch_text) -> str:

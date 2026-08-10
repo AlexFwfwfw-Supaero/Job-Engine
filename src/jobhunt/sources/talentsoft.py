@@ -157,6 +157,18 @@ def discover_families(page: str) -> list[tuple[str, int]]:
     return sorted(found.items(), key=lambda pair: -pair[1])
 
 
+def reset_session(client) -> None:
+    """Forget the facets the portal is holding for us.
+
+    The selected facets live in the session cookie, not in the URL, so the
+    only way to ask for one family alone is to arrive as a new visitor. A
+    client with no cookie jar has nothing to forget.
+    """
+    cookies = getattr(client, "cookies", None)
+    if cookies is not None and hasattr(cookies, "clear"):
+        cookies.clear()
+
+
 def _page_url(root: str, page: int, family: str = "") -> str:
     base = f"{root.rstrip('/')}{LIST_PATH}"
     if family:
@@ -208,6 +220,11 @@ def fetch(
         return list(by_url.values())
 
     for family, count in families:
+        # `changefacet=1` adds a facet to the session rather than replacing
+        # it, so without dropping the cookies every family after the first is
+        # filtered by its predecessors as well. Live, that silently returned
+        # 1133 of 3805 offers.
+        reset_session(client)
         # The count is exact, so the last page is known before asking for it.
         for page in range(1, -(-count // PAGE_SIZE) + 1):
             if budget <= 0:
