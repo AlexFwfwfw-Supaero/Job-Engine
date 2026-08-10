@@ -356,18 +356,15 @@ employers:
              constraint for you."}
   - {name: PLD Space, country: ES, city: Elche, ats: sitemap,
      ats_endpoint: "https://pldspace.com/sitemap.xml#/pld-space-empleo/posiciones-abiertas/",
-     poll_enabled: false, tags: [launch, gnc],
-     careers_url: "https://pldspace.com/en/careers",
-     notes: "Miura launchers, Spanish-speaking site, and the largest sitemap
-             board found — 96 postings, of which 4 read as avionics. Parsed
-             and verified 2026-08-10, but left OFF: pldspace.com serves its
-             leaf certificate with no intermediate, so the chain does not
-             verify. Browsers hide this by fetching the missing certificate;
-             httpx and curl refuse, and enrichment would fail on every detail
-             page for the same reason. Not worth disabling TLS verification
-             over. The 2026-07-27 'domain did not resolve' note was this, not
-             DNS. Flip poll_enabled when they fix their chain — the endpoint
-             above is already correct."}
+     poll_enabled: true, tags: [launch, gnc],
+     careers_url: "https://www.pldspace.com/en/pld-space-open-positions/",
+     notes: "CONFIRMED 2026-08-10 — 96 postings, the largest sitemap board.
+             Miura launchers, Spanish-speaking site, heavy on shop-floor work.
+             pldspace.com serves its leaf certificate without the intermediate
+             that signs it, which is why the 2026-07-27 note claimed the domain
+             did not resolve — it was TLS, not DNS. The intermediate is a
+             public Sectigo CA and now ships in src/jobhunt/certs/, so the
+             chain builds and verification stays fully on."}
   - {name: Pangea Aerospace, country: ES, city: Barcelona, ats: manual,
      tags: [propulsion, sme],
      careers_url: "https://www.pangeapropulsion.com/",

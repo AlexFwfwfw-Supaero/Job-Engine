@@ -1,6 +1,11 @@
+import ssl
+
+import certifi
 import pytest
 
-from jobhunt.snapshot import fetch_text, html_to_text, save_snapshot
+from jobhunt.snapshot import (
+    CERTS_DIR, fetch_text, html_to_text, save_snapshot, ssl_context,
+)
 
 
 class FakeResponse:
@@ -71,3 +76,33 @@ def test_save_snapshot_creates_the_directory(tmp_path):
     target = tmp_path / "nested" / "postings"
     path = save_snapshot(target, "https://example.com/x", "x")
     assert path.exists()
+
+
+def test_ssl_context_still_rejects_untrusted_certificates():
+    """The bundled intermediates must not become a blanket 'trust anything'.
+
+    They exist so a valid chain can be built, not so verification can be
+    skipped: a self-signed certificate has to stay refused.
+    """
+    import ssl
+
+    context = ssl_context()
+    assert context.verify_mode == ssl.CERT_REQUIRED
+    assert context.check_hostname is True
+
+
+def test_ssl_context_loads_every_bundled_intermediate():
+    before = ssl.create_default_context(cafile=certifi.where())
+    bundled = sorted(CERTS_DIR.glob("*.pem"))
+
+    assert bundled, "certs/ is empty — the PLD Space chain will not build"
+    assert len(ssl_context().get_ca_certs()) == len(before.get_ca_certs()) + len(bundled)
+
+
+def test_bundled_certificates_carry_their_provenance():
+    """A CA certificate with no note saying where it came from is one nobody
+    can check. Each file's header records the source and fingerprint."""
+    for pem in CERTS_DIR.glob("*.pem"):
+        header = pem.read_text(encoding="utf-8").split("-----BEGIN")[0]
+        assert "SHA-256" in header
+        assert "http" in header

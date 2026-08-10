@@ -68,10 +68,40 @@ def save_snapshot(directory: Path, url: str, text: str) -> Path:
     return path
 
 
+CERTS_DIR = Path(__file__).parent / "certs"
+
+
+def ssl_context():
+    """The public trust store, plus the intermediates certifi cannot supply.
+
+    Some employers serve their leaf certificate without the intermediate that
+    signs it. The chain is real and its root is trusted; the server simply
+    fails to send the middle of it, so a client has no path to follow and
+    refuses the connection. Browsers paper over this by fetching the missing
+    certificate from the leaf's AIA extension. Python does not, and the
+    tempting fix — verify=False — turns off hostname and expiry checking too,
+    for every host, to work around one employer's misconfiguration.
+
+    So the missing intermediates are shipped in certs/ instead. Verification
+    stays fully on and nothing gains trust it did not already have: each of
+    these is a public CA whose own root is in certifi. See the header of each
+    file for where it came from and how to check it.
+    """
+    import ssl
+
+    import certifi
+
+    context = ssl.create_default_context(cafile=certifi.where())
+    for pem in sorted(CERTS_DIR.glob("*.pem")):
+        context.load_verify_locations(cafile=str(pem))
+    return context
+
+
 def default_client():
     """Build the real HTTP client. Never called from tests."""
     import httpx
 
     return httpx.Client(
-        headers={"User-Agent": USER_AGENT}, timeout=20.0, follow_redirects=True
+        headers={"User-Agent": USER_AGENT}, timeout=20.0, follow_redirects=True,
+        verify=ssl_context(),
     )

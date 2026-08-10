@@ -149,7 +149,7 @@ Some employers have no API worth reaching but do publish every open advert in
 `sitemap.xml`, the file they hand search engines. The `sitemap` source reads
 that: the title comes from the URL slug, and everything else waits for
 enrichment to fetch the page. It reaches CNES, Telespazio France and Sirius
-today, and one more parser would reach any employer that does the same.
+today, plus PLD Space, and would reach any employer that does the same.
 
 A sitemap lists the whole site, so `ats_endpoint` carries the job path as a URL
 fragment — `https://careers.telespazio.fr/sitemap.xml#/jobs/`. A fragment is
@@ -161,7 +161,19 @@ privacy policy as a job.
 
 Cornerstone (GMV, OHB) needs a session token its search API will not issue to a
 plain fetch. DLR renders its SuccessFactors results in JavaScript and its only
-no-JS feed is capped at 10 postings. PLD Space is parsed and configured but
-switched off: it serves its certificate without the intermediate, so the chain
-does not verify and neither the sitemap nor any posting can be fetched without
-turning TLS verification off, which is not worth 96 postings.
+no-JS feed is capped at 10 postings.
+
+## Certificates
+
+A few employers serve their leaf certificate without the intermediate that
+signs it. The chain is real and its root is public; the server just fails to
+send the middle of it, so there is no path to follow and the connection is
+refused. Browsers fetch the missing certificate themselves and say nothing.
+
+`src/jobhunt/certs/` holds those intermediates, and `snapshot.ssl_context()`
+loads them alongside certifi. Verification stays fully on — expired,
+self-signed and wrong-host certificates are still rejected — and nothing gains
+trust it did not already have. The alternative, `verify=False`, would have
+turned off hostname and expiry checking for every host to work around one
+employer's misconfiguration. Each file's header records where it came from and
+how to check it.

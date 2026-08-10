@@ -4,6 +4,8 @@ version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
   "typer>=0.12", "httpx>=0.27", "jinja2>=3.1", "pyyaml>=6.0",
+  # Arrives with httpx anyway, but snapshot.ssl_context() imports it directly.
+  "certifi",
   "fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9",
 ]
 
@@ -24,7 +26,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-jobhunt = ["templates/*.j2"]
+jobhunt = ["templates/*.j2", "certs/*.pem"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
