@@ -185,6 +185,10 @@ role_families:
                "navigation payload", "localisation", "guidage",
                "guidage-pilotage", "navigation inertielle",
                "centrale inertielle", "recalage",
+               # CNES writes "dynamique du vol" where the English side writes
+               # flight dynamics; without it their only in-domain opening
+               # scored zero.
+               "dynamique du vol", "mecanique spatiale",
                # German: DLR, OHB, Airbus DS and Beyond Gravity post in German
                # and had no keyword of their own until now.
                "tragheitsnavigation", "bahnbestimmung", "flugregelung",

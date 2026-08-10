@@ -363,8 +363,14 @@ employers:
              matcher will discard its postings. Kept for visibility only."}
 
   # --- satellite operators ---
-  - {name: Eutelsat, country: FR, city: Paris, ats: manual, tags: [space, pnt],
+  - {name: Eutelsat, country: FR, city: Paris, ats: successfactors,
+     ats_endpoint: "https://careers.eutelsat.com",
+     poll_enabled: true, tags: [space, pnt],
      careers_url: "https://careers.eutelsat.com/",
-     notes: "CONFIRMED reachable 2026-07-27. Worth more than its tags suggest:
-             the OneWeb LEO constellation is part of ESA's LEO-PNT work, so
+     notes: "CONFIRMED 2026-08-10 — SAP SuccessFactors, 49 postings, and the
+             existing successfactors source polls it with no new code. The
+             2026-07-27 note said 'no public API' without checking the tenant
+             shape; the /job/City-Title-id URLs were the giveaway. Two match
+             today, both flight dynamics. Worth more than its tags suggest: the
+             OneWeb LEO constellation is part of ESA's LEO-PNT work, so
              navigation-from-LEO roles can appear here."}
