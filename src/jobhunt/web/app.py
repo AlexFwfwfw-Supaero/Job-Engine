@@ -24,7 +24,7 @@ from jobhunt.web.progress import ADVICE, POLL, PROGRESS
 from jobhunt.web.views import (
     DEFAULT_SPOTTED_SORT, TABS, advice_context, applied_context,
     archive_context, deadlines_context, interested_context, overview_context,
-    render_tab, search_context,
+    render_tab, search_context, unmatched_jobs,
 )
 
 CONTEXT_BUILDERS = {
@@ -378,6 +378,26 @@ def create_app(deps: Deps) -> FastAPI:
         if llm is not None and pending and not PROGRESS.running:
             PROGRESS.start(len(pending))
             deps.background(lambda: _read_all(deps, cfg, llm, pending, force=redo))
+        return RedirectResponse(_safe_return(return_to), status_code=SEE_OTHER)
+
+    @app.post("/actions/archive-unmatched")
+    def archive_unmatched(return_to: str = Form("search")) -> RedirectResponse:
+        """Archive the spotted jobs the rules would no longer store.
+
+        Tightening a keyword list cannot reach backwards, and rescoring
+        deliberately never archives. This is that sweep, as one deliberate
+        click rather than something a config edit does behind your back. Only
+        Spotted is touched: anything you have shortlisted or applied to is your
+        judgment and outranks the keyword list.
+        """
+        cfg = load_scoring(deps.config_dir / "scoring.yaml")
+        store = deps.store_factory()
+        try:
+            for job in unmatched_jobs(store, cfg):
+                store.archive_job(job.id, "no longer matches your role families",
+                                  ts=_now())
+        finally:
+            store.close()
         return RedirectResponse(_safe_return(return_to), status_code=SEE_OTHER)
 
     @app.post("/actions/advise")

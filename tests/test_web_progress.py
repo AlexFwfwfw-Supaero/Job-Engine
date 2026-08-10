@@ -353,3 +353,50 @@ def test_a_re_read_of_one_row_also_updates_what_the_lists_sort_by(deps, db_path)
     assert after.llm_fit == 0.7
     assert after.rank_score != before
     store.close()
+
+
+# --- jobs that stopped matching ----------------------------------------
+
+def _spot(store, title):
+    from jobhunt.models import Job
+
+    return store.upsert_job(Job(
+        employer_id=1, title=title,
+        # upsert_job dedupes on url, so this has to be unique per title.
+        url="https://x/" + title.replace(" ", "-").lower(), country="ES",
+        source="manual", first_seen="t", last_seen="t"))
+
+
+def test_spotted_jobs_that_no_longer_match_are_listed(deps, db_path):
+    from jobhunt.models import Stage
+
+    store = Store(db_path)
+    store.initialize()
+    keep = _spot(store, "GNSS Engineer")
+    drop = _spot(store, "Land Surveyor")
+    # Triage outranks the keyword list: a shortlisted job is never listed.
+    shortlisted = _spot(store, "Land Surveyor Two")
+    store.set_stage(shortlisted, Stage.SHORTLISTED, ts="t")
+    store.close()
+
+    page = TestClient(create_app(deps)).get("/search").text
+    assert "1 spotted job(s) no longer match" in page
+    assert "Land Surveyor" in page
+
+    client = TestClient(create_app(deps), follow_redirects=False)
+    assert client.post("/actions/archive-unmatched",
+                       data={"return_to": "search"}).status_code == 303
+
+    store = Store(db_path)
+    assert store.get_job(drop).dismissed is True
+    assert store.get_job(keep).dismissed is False
+    assert store.get_job(shortlisted).dismissed is False
+    store.close()
+
+
+def test_nothing_is_shown_when_everything_still_matches(deps, db_path):
+    store = Store(db_path)
+    store.initialize()
+    _spot(store, "GNSS Engineer")
+    store.close()
+    assert "no longer match" not in TestClient(create_app(deps)).get("/search").text

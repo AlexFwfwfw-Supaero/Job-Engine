@@ -40,11 +40,18 @@ employers:
      notes: "CONFIRMED 2026-07-27 — Workday tenant 'thales', site 'Careers', ~2000
              jobs. Covers the whole group including Thales Alenia Space, so the
              separate TAS entry stays manual to avoid double-polling."}
-  - {name: Safran Data Systems, country: FR, city: Toulouse, ats: manual, tags: [pnt, industry],
+  - {name: Safran Data Systems, country: FR, city: Toulouse, ats: talentsoft,
+     ats_endpoint: "https://careers.safran-group.com",
+     poll_enabled: true, tags: [pnt, industry],
      careers_url: "https://careers.safran-group.com/accueil.aspx?LCID=1036",
-     notes: "No public ATS API. Probed 2026-07-27: not on Workday, Greenhouse,
-             SmartRecruiters, Lever, Ashby, Recruitee or Personio. The portal is a
-             JS-rendered .aspx app. Manual entry only until someone maps it."}
+     notes: "CONFIRMED 2026-08-08 — Talentsoft, 3795 offers, 20 a page. The
+             2026-07-27 probe called this a JS-rendered app with no
+             machine-readable view and was wrong: liste-toutes-offres.aspx is
+             server-rendered and takes a plain &page=. Covers the whole Safran
+             group, not just Data Systems — Massy, Eragny, Nantes, and some
+             Gloucester and Chihuahua postings that the rows do not label with
+             a country, so those are stored as FR until the model reads them.
+             The advert body is on the detail page, not in the row."}
   - {name: GMV, country: ES, city: Madrid, ats: cornerstone,
      ats_endpoint: "https://gmv.csod.com/ux/ats/careersite/4/home?c=gmv",
      poll_enabled: true, tags: [gnss, space],

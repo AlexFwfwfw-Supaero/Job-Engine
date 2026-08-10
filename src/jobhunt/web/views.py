@@ -11,6 +11,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from jobhunt.config import load_cities, load_comp, load_deadlines, load_scoring
 from jobhunt.deadlines import upcoming
 from jobhunt.linkedin import build_links, company_links, locations_from_cities
+from jobhunt.match import evaluate
 from jobhunt.models import Job, Stage
 from jobhunt.score import compensation
 from jobhunt.staleness import due_jobs
@@ -158,6 +159,21 @@ SPOTTED_SORTS: dict[str, tuple[str, Callable[[JobRow], float]]] = {
 DEFAULT_SPOTTED_SORT = "rank"
 
 
+def unmatched_jobs(store: Store, cfg) -> list[Job]:
+    """Spotted jobs the rules would no longer store.
+
+    Tightening the keyword lists cannot reach backwards: rescoring zeroes their
+    fit but never archives, because dismissal is a triage decision and a scoring
+    change must not make it for you. So they are listed instead, and archiving
+    them stays one deliberate click.
+    """
+    return [
+        job for job in store.list_jobs(stage=Stage.SPOTTED)
+        if job.id is not None
+        and not evaluate(job.title, "", job.country, cfg).relevant
+    ]
+
+
 def sort_rows(rows: list[JobRow], sort: str) -> list[JobRow]:
     """Order the Spotted table. An unknown sort falls back to the default
     rather than erroring: the value arrives from a query string."""
@@ -177,6 +193,7 @@ def search_context(store: Store, deps: Deps,
     return {
         "unread_count": len([j for j in readable if j.llm_checked is None]),
         "readable_count": len(readable),
+        "unmatched": unmatched_jobs(store, cfg),
         "linkedin_groups": _linkedin_groups(cfg, cities),
         "consultancy_groups": _group_links(company_links(cfg)),
         "ai_available": deps.llm() is not None,

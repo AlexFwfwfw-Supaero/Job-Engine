@@ -14,11 +14,22 @@ language_keywords:
   de: ["german language", "deutschkenntnisse", "fluent german", "german is required"]
   nl: ["dutch language", "fluent dutch"]
 
-# Matched against the title only, and accent-insensitively — "ingenieur
-# commercial" catches "ingénieur commercial". The French and German entries are
-# not decoration: nine of nineteen polled employers post in French and six in
-# German, and until these existed a "Vertriebsingenieur Navigation" and an
-# "ingénieur commercial navigation" both scored 0.45 and were stored.
+# Matched against the title only, accent-insensitively, and only from the start
+# of a word: "ingenieur commercial" catches "ingénieur commercial", while
+# "formation" no longer catches "Geo Information". These reject outright — a
+# posting that hits one is never stored and you never see it — so the list is
+# limited to work that is unambiguously not engineering.
+#
+# What is deliberately NOT here: management and quality. "Responsable" in French
+# is usually a technical lead, and rejecting it would have deleted a shortlisted
+# "Ingénieur Responsable technique de station GNSS"; "quality" would have
+# deleted a shortlisted "Avionics Quality Engineer". The screening prompt scores
+# those down instead, which leaves them visible and arguable.
+#
+# The French and German entries are not decoration: nine of nineteen polled
+# employers post in French and six in German, and until these existed a
+# "Vertriebsingenieur Navigation" and an "ingénieur commercial navigation" both
+# scored 0.45 and were stored.
 negative_keywords:
   - "land surveyor"
   - "surveying technician"
@@ -43,6 +54,56 @@ negative_keywords:
   - "aussendienst"
   - "kundenberater"
   - "vermessungstechniker"
+
+  # Shop floor and instrument operation. The tools these people use are the
+  # ones this search is about, so the titles read close to a match; the work is
+  # executing a design rather than producing one.
+  - "technicien"
+  - "technicienne"
+  - "technician"
+  - "techniker"
+  - "operateur"
+  - "operatrice"
+  - "operator"
+  - "monteur"
+  - "monteuse"
+  - "ajusteur"
+  - "ajusteuse"
+  - "soudeur"
+  - "usineur"
+  - "chaudronnier"
+  - "cableur"
+  - "regleur"
+  - "mecanicien"
+  - "electricien"
+  - "mecaniker"
+  - "elektriker"
+  - "schlosser"
+  - "montage"
+
+  # Administration and support functions.
+  - "assistant"
+  - "assistante"
+  - "secretaire"
+  - "comptable"
+  - "controleur de gestion"
+  - "juriste"
+  - "acheteur"
+  - "acheteuse"
+  - "approvisionneur"
+  - "logisticien"
+  - "magasinier"
+  - "ressources humaines"
+  - "recruteur"
+  - "recruiter"
+  - "chargee de recrutement"
+  - "charge de recrutement"
+  - "sachbearbeiter"
+  - "kaufmann"
+  - "kauffrau"
+  - "personalreferent"
+  - "buchhalter"
+  - "einkaufer"
 
 staleness:
   applied: [14, 30]

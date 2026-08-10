@@ -67,9 +67,31 @@ def _keyword_pattern(keyword: str) -> re.Pattern[str] | None:
     return re.compile(f"{left}{escaped}{right}")
 
 
-def _matches(keyword: str, haystack: str) -> bool:
-    """The haystack is expected folded already; evaluate() does that once."""
+@lru_cache(maxsize=1024)
+def _word_start_pattern(keyword: str) -> re.Pattern[str]:
+    """A keyword that must begin a word, but may end mid-one.
+
+    The trailing half is left open on purpose: `navigation system` still has to
+    match "Navigation Systems Engineer", and German compounds still have to
+    match `empfanger` inside "Satellitenempfänger".
+    """
+    left = r"\b" if keyword[:1].isalnum() else ""
+    return re.compile(f"{left}{re.escape(keyword)}")
+
+
+def _matches(keyword: str, haystack: str, word_start: bool = False) -> bool:
+    """The haystack is expected folded already; evaluate() does that once.
+
+    `word_start` is for the rejection lists. Matching a bare substring there
+    means `formation` rejects "Geo Information" and `communication` rejects
+    "Communication, Navigation" — a real posting silently thrown away. The
+    role families keep plain substring matching, because the two mistakes are
+    not the same size: an over-eager positive inflates a score you can see, an
+    over-eager negative deletes a job you never learn existed.
+    """
     keyword = _folded_keyword(keyword)
+    if word_start:
+        return bool(_word_start_pattern(keyword).search(haystack))
     pattern = _keyword_pattern(keyword)
     if pattern is None:
         return keyword in haystack
@@ -104,7 +126,7 @@ def evaluate(
         )
 
     for negative in cfg.negative_keywords:
-        if _matches(negative, title_l):
+        if _matches(negative, title_l, word_start=True):
             return MatchResult(
                 relevant=False, role_fit=0.0,
                 reasons=[f"negative keyword in title: {negative}"],

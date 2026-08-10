@@ -39,6 +39,22 @@
 read before.</strong> Jobs already carrying an AI score are untouched. This runs
 in the background at roughly 11 seconds each, four at a time.</p>
 {% endif %}
+{% if unmatched %}
+<details class="sub">
+  <summary>{{ unmatched|length }} spotted job(s) no longer match your role
+  families</summary>
+  <p>Tightening the keyword lists does not reach backwards, and rescoring never
+  archives on its own — ruling a job out is your call. These are the ones the
+  rules would not store today.</p>
+  <ul>{% for job in unmatched %}<li><a href="{{ job.url }}" target="_blank"
+    rel="noopener noreferrer">{{ job.title }}</a></li>{% endfor %}</ul>
+  <form method="post" action="/actions/archive-unmatched"
+    onsubmit="return confirm('Archive {{ unmatched|length }} job(s) that no longer match? They stay in the Archive tab and can be restored.')">
+    <input type="hidden" name="return_to" value="search">
+    <button type="submit">Archive these {{ unmatched|length }}</button>
+  </form>
+</details>
+{% endif %}
 {% if search_available %}
 <p class="sub">Searching polls {{ pollable|length }} employer(s):
 {{ pollable|join(', ') }}.

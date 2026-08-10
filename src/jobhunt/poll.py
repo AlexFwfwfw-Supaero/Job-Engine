@@ -9,7 +9,7 @@ from jobhunt.models import Employer, Job
 from jobhunt.score import compensation, quality_of_life, total_score
 from jobhunt.sources import (
     breezy, capgemini, cornerstone, euraxess, greenhouse, onera_theses, recruitee, rss,
-    sii, smartrecruiters, successfactors, talentlink, workday,
+    sii, smartrecruiters, successfactors, talentlink, talentsoft, workday,
 )
 from jobhunt.sources.base import RawPosting
 from jobhunt.store import Store
@@ -29,6 +29,7 @@ SOURCE_REGISTRY: dict[str, Callable] = {
     rss.NAME: rss.fetch,
     talentlink.NAME: talentlink.fetch,
     onera_theses.NAME: onera_theses.fetch,
+    talentsoft.NAME: talentsoft.fetch,
 }
 
 # Sources that return their whole board in one unpaginated response and so
@@ -52,6 +53,12 @@ def source_kwargs(ats: str, cfg: ScoringConfig, common: dict) -> dict:
         # 360: the shared count would have seen 30 of them.
         kwargs["max_pages"] = max(
             int(kwargs.get("max_pages") or 0), sii.DEFAULT_MAX_PAGES
+        )
+    if ats == talentsoft.NAME:
+        # Twenty rows a page against a board of 3795. The shared count would
+        # have walked 200 of them and called that the whole market.
+        kwargs["max_pages"] = max(
+            int(kwargs.get("max_pages") or 0), talentsoft.DEFAULT_MAX_PAGES
         )
     if ats == smartrecruiters.NAME:
         # A page is 100 postings here against Workday's 20, and these boards

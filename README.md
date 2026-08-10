@@ -65,6 +65,19 @@ Everything the UI does has a CLI equivalent:
 A dead link never auto-archives. `jobs refresh` flags it and leaves the decision
 to you — a 404 can mean filled, moved, or a transient error.
 
+`negative_keywords` in `scoring.yaml` rejects a posting outright on its title:
+technician, operator and administrative roles never reach the pipeline. They
+match from the start of a word, so `formation` does not reject "Geo
+Information". Management and quality titles are deliberately absent — in French
+"Responsable technique" is a technical lead, and rejecting it by keyword would
+have hidden a shortlisted job. The screening prompt scores those down instead,
+which leaves them visible and arguable.
+
+Tightening the list does not reach backwards. The Job Search tab lists the
+spotted jobs the rules would no longer store and offers to archive them, because
+ruling a job out stays your decision rather than something a config edit does
+behind your back.
+
 ## Configuration
 
 Everything tunable lives in `config/`:

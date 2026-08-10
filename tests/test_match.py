@@ -320,3 +320,59 @@ def test_german_engineering_roles_are_still_kept():
         "Doktorand Signalverarbeitung für Satellitennavigation",
     ):
         assert evaluate(title, "", "DE", cfg).relevant, title
+
+
+def test_a_negative_keyword_must_start_a_word():
+    """Plain substring matching made 'formation' reject 'Geo Information' and
+    'communication' reject 'Communication, Navigation' — real radar and remote
+    sensing work thrown away with nothing said."""
+    from jobhunt.config import ScoringConfig
+    from jobhunt.match import evaluate
+
+    cfg = ScoringConfig(
+        weights={"comp": 0.3, "qol": 0.2, "fit": 0.5},
+        qol_weights={"sunshine": 0.5, "nature": 0.3, "rent": 0.2},
+        role_families=[RoleFamily("radar", 1.0, ["radar", "remote sensing"])],
+        negative_keywords=["formation", "communication"],
+    )
+    assert evaluate("Internship Radar Remote Sensing and Geo Information",
+                    "", "DE", cfg).relevant
+    assert not evaluate("Formation Engineer Radar", "", "DE", cfg).relevant
+
+
+def test_a_positive_keyword_still_matches_inside_a_word():
+    """The asymmetry is the point: 'navigation system' has to reach
+    'Navigation Systems', and German compounds swallow their keywords."""
+    from jobhunt.match import evaluate
+
+    cfg = _live_cfg()
+    assert evaluate("Navigation Systems Engineer", "", "DE", cfg).relevant
+    assert evaluate("Entwicklungsingenieur Radartechnik", "", "DE", cfg).relevant
+
+
+def test_technician_and_admin_roles_are_rejected_outright():
+    from jobhunt.match import evaluate
+
+    cfg = _live_cfg()
+    for title in (
+        "Technicien d'essais en électronique numérique & RF (H/F)",
+        "Avionics Technician (m/f/d)",
+        "HF-Techniker:in für Antennenbetrieb (m/w/d)",
+        "Data Delivery Operator (Navigation+)",
+        "Assistant Technique Client Radar SAMP/T (H/F)",
+    ):
+        assert not evaluate(title, "", "FR", cfg).relevant, title
+
+
+def test_technical_leads_and_quality_engineers_survive():
+    """Rejecting 'responsable' or 'quality' by title would have deleted jobs
+    already shortlisted; the screening prompt scores them down instead."""
+    from jobhunt.match import evaluate
+
+    cfg = _live_cfg()
+    for title in (
+        "Ingénieur Responsable technique de station de réception GNSS",
+        "Avionics Quality Engineer (m/f/d)",
+        "GALILEO Engineering Work Package Manager",
+    ):
+        assert evaluate(title, "", "FR", cfg).relevant, title

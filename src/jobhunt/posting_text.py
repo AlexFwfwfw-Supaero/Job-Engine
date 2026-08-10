@@ -26,6 +26,10 @@ MIN_USEFUL_CHARS = 40
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"[ \t\r\f\v]+")
 _WORKDAY_HOST_RE = re.compile(r"^(?P<tenant>[a-z0-9-]+)\.wd\d+\.myworkdayjobs\.com$")
+# Everything from the job-description heading to the application form.
+_TALENTSOFT_BODY_RE = re.compile(
+    r'<h2 class="JobDescription".*?(?=<div[^>]+class="[^"]*ts-offer-page-cta|$)',
+    re.S)
 
 
 def strip_html(raw: str) -> str:
@@ -68,10 +72,27 @@ def _workday_text(url: str, client) -> str:
     return strip_html(description)
 
 
+def _talentsoft_text(url: str, client) -> str:
+    """The advert out of a Talentsoft detail page.
+
+    The page is server-rendered but 24k characters of it are language pickers,
+    login forms and legal boilerplate, and the advert sits near the end. Handed
+    over whole it would be truncated to the prompt's 6000-character budget
+    before the job description began. The body starts at the "Description du
+    poste" heading, which Talentsoft marks with a class.
+    """
+    response = client.get(url)
+    response.raise_for_status()
+    match = _TALENTSOFT_BODY_RE.search(response.text or "")
+    return strip_html(match.group(0) if match else "")
+
+
 def fetch_posting_text(job: Job, client, html_fetcher=fetch_text) -> str:
     """The posting's full text, by whichever route that source exposes it."""
     if job.source == "workday" and cxs_detail_url(job.url):
         text = _workday_text(job.url, client)
+    elif job.source == "talentsoft":
+        text = _talentsoft_text(job.url, client)
     else:
         text = strip_html(html_fetcher(job.url, client))
 
