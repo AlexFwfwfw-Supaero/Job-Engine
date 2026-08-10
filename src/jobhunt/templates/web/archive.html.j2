@@ -8,7 +8,7 @@
 <table>
   <tr><th>Job</th><th>Stage</th><th>Reason</th><th></th></tr>
   {% for row in rows %}
-  <tr>
+  <tr class="{{ 'new' if row.is_new else '' }}">
     <td>{{ r.identity(row) }}</td>
     <td>{{ row.job.stage.value }}</td>
     <td>{{ row.job.dismiss_reason or '—' }}</td>

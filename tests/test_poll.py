@@ -410,3 +410,15 @@ def test_a_posting_with_no_level_is_still_treated_as_junior(store):
         source="workday", url="https://x/t2", title="Radar Engineer"),
         cfg, comp, {}, "2026-07-28T00:00:00Z")
     assert store.list_jobs()[0].level == "junior"
+
+
+def test_poll_all_stamps_when_the_search_ran(store, cfg, comp_cfg, cities):
+    """Marking jobs "new since the last search" needs to know when that was."""
+    store.upsert_employer(Employer(name="Airbus", ats="workday",
+                                   poll_enabled=True, country="DE"))
+    registry = {"workday": fake_source([posting("GNSS Engineer", "https://x/1")], [])}
+
+    poll_all(store, registry, None, cfg, comp_cfg, cities,
+             now="2026-08-10T09:00:00Z")
+
+    assert store.get_meta("last_search_at") == "2026-08-10T09:00:00Z"

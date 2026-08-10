@@ -9,7 +9,7 @@
   <tr><th>Job</th><th>Quiet for</th><th>Score</th>
       <th>Priority &amp; note</th><th>Advance</th></tr>
   {% for row in rows %}
-  <tr>
+  <tr class="{{ 'new' if row.is_new else '' }}">
     <td>{{ r.identity(row) }}</td>
     <td class="score {{ 'warn' if row.stale_days and row.stale_days >= 14 else '' }}">
       {{ row.stale_days if row.stale_days is not none else '—' }}d</td>

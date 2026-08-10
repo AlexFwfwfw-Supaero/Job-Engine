@@ -25,6 +25,12 @@
     .flag { font-size: 0.72rem; border: 1px solid currentColor; border-radius: 3px;
             padding: 0 0.3rem; }
     .warn { color: #b00; }
+    /* Found by the most recent search, until the next one runs. Translucent
+       rather than a flat yellow: the page follows the system colour scheme,
+       and #ffc over a dark background would be unreadable. */
+    tr.new > td { background: rgba(255, 200, 0, 0.16); }
+    .fresh { color: #a67c00; }
+    @media (prefers-color-scheme: dark) { .fresh { color: #e0b030; } }
     .empty { opacity: 0.6; font-style: italic; }
     form.inline { display: inline; }
     .cards { display: grid; gap: 1rem;

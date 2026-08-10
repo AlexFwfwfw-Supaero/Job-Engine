@@ -15,7 +15,7 @@ from jobhunt.match import evaluate
 from jobhunt.models import Job, Stage
 from jobhunt.score import compensation
 from jobhunt.staleness import due_jobs
-from jobhunt.store import Store
+from jobhunt.store import LAST_SEARCH_AT, Store
 from jobhunt.web.deps import Deps
 from jobhunt.web.progress import ADVICE, POLL, PROGRESS
 
@@ -49,6 +49,8 @@ class JobRow:
     stale_days: int | None = None
     # The model's reading, decoded for the template. None when never analysed.
     ai: dict | None = None
+    # Turned up by the most recent search, and not yet superseded by another.
+    is_new: bool = False
 
 
 def _ai(job: Job) -> dict | None:
@@ -80,15 +82,30 @@ def _comp_label(job: Job, comp_cfg, cities, cfg) -> str:
     return f"{gross} gross · {b.purchasing_power / 1000:.0f}k PPP-net ({b.source})"
 
 
+def is_new(job: Job, marker: str | None) -> bool:
+    """Whether the most recent search is what turned this job up.
+
+    The marker is when that search started, and it is the same timestamp the
+    sweep wrote into every job it stored, so "at or after" is the test. A job
+    added by hand since then counts too: it was not there when the search ran,
+    which is the thing the mark is saying. ISO-8601 strings sort as text.
+    """
+    if marker is None or not job.first_seen:
+        return False
+    return job.first_seen >= marker
+
+
 def _rows(store: Store, jobs: list[Job], deps: Deps) -> list[JobRow]:
     cfg, comp_cfg, cities = _load_config(deps)
     employers = {e.id: e.name for e in store.list_employers()}
+    marker = store.get_meta(LAST_SEARCH_AT)
     return [
         JobRow(
             job=job,
             employer_name=employers.get(job.employer_id, "unknown"),
             comp_label=_comp_label(job, comp_cfg, cities, cfg),
             ai=_ai(job),
+            is_new=is_new(job, marker),
         )
         for job in jobs
     ]

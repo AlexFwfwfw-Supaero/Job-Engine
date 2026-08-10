@@ -3,11 +3,11 @@ from datetime import date
 import pytest
 
 from jobhunt.models import Employer, Job, Stage
-from jobhunt.store import Store
+from jobhunt.store import LAST_SEARCH_AT, Store
 from jobhunt.web.deps import Deps
 from jobhunt.web.views import (
     TABS, applied_context, archive_context, deadlines_context,
-    interested_context, overview_context, search_context,
+    interested_context, is_new, overview_context, search_context,
 )
 
 
@@ -150,3 +150,57 @@ def test_comp_label_says_no_data_when_unknown(store, deps):
 
 def test_deadlines_context_lists_cycles(store, deps):
     assert deadlines_context(store, deps)["deadlines"][0].name == "ESA EGT"
+
+
+# --- "new since the last search" ------------------------------------------
+
+def test_nothing_is_new_before_the_first_search_has_ever_run():
+    assert is_new(Job(employer_id=1, title="A", url="https://x/a",
+                      first_seen="2026-08-10T09:00:00Z"), None) is False
+
+
+def test_a_job_first_seen_by_the_last_search_is_new():
+    job = Job(employer_id=1, title="A", url="https://x/a",
+              first_seen="2026-08-10T09:00:00Z")
+    assert is_new(job, "2026-08-10T09:00:00Z") is True
+
+
+def test_a_job_added_by_hand_after_the_last_search_is_new():
+    job = Job(employer_id=1, title="A", url="https://x/a",
+              first_seen="2026-08-10T11:30:00Z")
+    assert is_new(job, "2026-08-10T09:00:00Z") is True
+
+
+def test_a_job_from_before_the_last_search_is_not_new():
+    job = Job(employer_id=1, title="A", url="https://x/a",
+              first_seen="2026-08-09T09:00:00Z")
+    assert is_new(job, "2026-08-10T09:00:00Z") is False
+
+
+def test_a_job_with_no_first_seen_is_not_new():
+    job = Job(employer_id=1, title="A", url="https://x/a", first_seen=None)
+    assert is_new(job, "2026-08-10T09:00:00Z") is False
+
+
+def test_rows_mark_the_jobs_the_last_search_found(store, deps):
+    eid = store.upsert_employer(Employer(name="Septentrio", country="DE"))
+    store.upsert_job(Job(employer_id=eid, title="Old", url="https://x/old",
+                         country="DE", first_seen="2026-08-09T09:00:00Z"))
+    store.upsert_job(Job(employer_id=eid, title="Fresh", url="https://x/new",
+                         country="DE", first_seen="2026-08-10T09:00:00Z"))
+    store.set_meta(LAST_SEARCH_AT, "2026-08-10T09:00:00Z")
+
+    marked = {row.job.title: row.is_new for row in search_context(store, deps)["rows"]}
+    assert marked == {"Old": False, "Fresh": True}
+
+
+def test_the_mark_survives_triage_into_another_tab(store, deps):
+    """Only the next search clears it — moving a job on does not."""
+    eid = store.upsert_employer(Employer(name="Septentrio", country="DE"))
+    jid = store.upsert_job(Job(employer_id=eid, title="Fresh",
+                               url="https://x/new", country="DE",
+                               first_seen="2026-08-10T09:00:00Z"))
+    store.set_stage(jid, Stage.SHORTLISTED, ts="2026-08-10T10:00:00Z")
+    store.set_meta(LAST_SEARCH_AT, "2026-08-10T09:00:00Z")
+
+    assert interested_context(store, deps)["rows"][0].is_new is True

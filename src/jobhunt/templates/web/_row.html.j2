@@ -19,6 +19,7 @@
 {% macro identity(row) %}
   <a href="{{ row.job.url }}" target="_blank" rel="noopener">{{ row.job.title }}</a>
   {% if row.job.link_status == 'dead' %}<span class="flag warn">dead link</span>{% endif %}
+  {% if row.is_new %}<span class="flag fresh">new</span>{% endif %}
   <div class="sub">
     {{ row.employer_name }}
     {% if row.job.city %}· {{ row.job.city }}{% endif %}

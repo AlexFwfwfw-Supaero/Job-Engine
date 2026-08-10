@@ -103,3 +103,18 @@ def test_set_stage_records_an_event(store):
     assert len(events) == 1
     assert events[0].kind is EventKind.STAGE
     assert "applied" in events[0].text
+
+
+def test_get_meta_returns_none_for_a_key_never_set(store):
+    assert store.get_meta("last_search_at") is None
+
+
+def test_set_meta_then_get_meta_roundtrips(store):
+    store.set_meta("last_search_at", "2026-08-10T09:00:00Z")
+    assert store.get_meta("last_search_at") == "2026-08-10T09:00:00Z"
+
+
+def test_set_meta_overwrites_an_existing_key(store):
+    store.set_meta("last_search_at", "2026-08-09T09:00:00Z")
+    store.set_meta("last_search_at", "2026-08-10T09:00:00Z")
+    assert store.get_meta("last_search_at") == "2026-08-10T09:00:00Z"

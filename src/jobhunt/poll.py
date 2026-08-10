@@ -12,7 +12,7 @@ from jobhunt.sources import (
     sii, smartrecruiters, successfactors, talentlink, talentsoft, workday,
 )
 from jobhunt.sources.base import RawPosting
-from jobhunt.store import Store
+from jobhunt.store import LAST_SEARCH_AT, Store
 
 # ats name -> fetch(employer, client, **kwargs) -> list[RawPosting]
 SOURCE_REGISTRY: dict[str, Callable] = {
@@ -215,6 +215,12 @@ def poll_all(
     Both fire for a failing source too, otherwise the count would stall on
     whichever employer broke.
     """
+    # Stamped before anything is fetched, with the same `now` that becomes each
+    # new job's first_seen. That is what makes "found by this sweep" a simple
+    # first_seen >= last_search_at, and it clears the previous sweep's "new"
+    # marks the moment this one starts — even if this one finds nothing.
+    store.set_meta(LAST_SEARCH_AT, now)
+
     reports: list[PollReport] = []
 
     def record(report: PollReport) -> None:

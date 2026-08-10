@@ -72,6 +72,14 @@ CREATE TABLE IF NOT EXISTS briefings (
     text TEXT NOT NULL
 );
 
+-- Small facts about the tracker itself rather than about any one job. So far
+-- one key: last_search_at, the timestamp of the most recent poll sweep, which
+-- is what "new since the last search" is measured against.
+CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_events_job ON events(job_id, ts);
 CREATE INDEX IF NOT EXISTS idx_jobs_stage ON jobs(stage, dismissed);
 """
@@ -97,6 +105,10 @@ _ADDED_COLUMNS = (
     ("llm_checked", "TEXT"),
     ("rank_score", "REAL DEFAULT 0"),
 )
+
+# meta key: when the most recent poll sweep started. Jobs first seen at or
+# after it are the ones that sweep turned up.
+LAST_SEARCH_AT = "last_search_at"
 
 VALID_LINK_STATUS = frozenset({"live", "dead", "unknown"})
 MIN_PRIORITY, MAX_PRIORITY = 0, 5
@@ -275,6 +287,22 @@ class Store:
         self.conn.commit()
 
     # --- briefings ------------------------------------------------------
+
+    # --- meta ----------------------------------------------------------
+
+    def get_meta(self, key: str) -> str | None:
+        row = self.conn.execute(
+            "SELECT value FROM meta WHERE key = ?", (key,)
+        ).fetchone()
+        return None if row is None else row["value"]
+
+    def set_meta(self, key: str, value: str) -> None:
+        self.conn.execute(
+            "INSERT INTO meta (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )
+        self.conn.commit()
 
     def save_briefing(self, ts: str, text: str, scope: str = "",
                       job_count: int = 0) -> int:

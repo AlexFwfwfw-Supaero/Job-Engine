@@ -7,7 +7,7 @@
   <tr><th>Job</th><th>Compensation</th><th>Score</th>
       <th>Priority &amp; note</th><th>Move</th></tr>
   {% for row in rows %}
-  <tr>
+  <tr class="{{ 'new' if row.is_new else '' }}">
     <td>{{ r.identity(row) }}</td>
     <td>{{ row.comp_label }}</td>
     <td>{{ r.scorecell(row.job) }}{{ r.ai(row, 'interested') }}</td>

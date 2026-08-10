@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from jobhunt.models import Employer, Job, Stage
-from jobhunt.store import Store
+from jobhunt.store import LAST_SEARCH_AT, Store
 from jobhunt.web.deps import Deps
 from jobhunt.web.views import (
     archive_context, interested_context, overview_context, render_tab,
@@ -185,3 +185,25 @@ def test_ai_verdict_is_shown_beside_the_rule_based_score(store, deps):
     assert "Galileo receiver work" in html
     assert "Lead with the thesis." in html
     assert "0.50" in html
+
+
+def test_a_new_row_is_tinted_and_badged(store, deps):
+    eid = store.upsert_employer(Employer(name="Septentrio"))
+    store.upsert_job(Job(employer_id=eid, title="Fresh", url="https://x/new",
+                         first_seen="2026-08-10T09:00:00Z"))
+    store.set_meta(LAST_SEARCH_AT, "2026-08-10T09:00:00Z")
+
+    html = render_tab("search", search_context(store, deps))
+    assert '<tr class="new">' in html
+    assert ">new</span>" in html
+
+
+def test_an_older_row_is_neither_tinted_nor_badged(store, deps):
+    eid = store.upsert_employer(Employer(name="Septentrio"))
+    store.upsert_job(Job(employer_id=eid, title="Old", url="https://x/old",
+                         first_seen="2026-08-09T09:00:00Z"))
+    store.set_meta(LAST_SEARCH_AT, "2026-08-10T09:00:00Z")
+
+    html = render_tab("search", search_context(store, deps))
+    assert '<tr class="new">' not in html
+    assert ">new</span>" not in html
