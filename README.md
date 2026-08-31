@@ -10,6 +10,8 @@ web UI.
     .venv/bin/pip install -e ".[dev]"
     .venv/bin/jobs sync-employers
 
+
+    .venv/bin/jobs serve
 ## Daily use
 
 Start the UI:

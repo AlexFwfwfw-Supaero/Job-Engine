@@ -149,3 +149,79 @@ def test_fetch_without_an_endpoint_asks_for_nothing():
     client = FakeClient()
     assert cs.fetch(employer(ats_endpoint=""), client) == []
     assert client.posts == []
+
+
+# --- reading one posting's advert --------------------------------------
+
+def test_job_details_url_is_built_from_the_browsable_url():
+    """The advert is not in the page: Cornerstone renders it in JavaScript,
+    exactly like Workday, so the stored URL fetches 20k of chrome and no
+    description. The requisition id in that URL is what the detail service
+    wants."""
+    from jobhunt.sources.cornerstone import job_details_url
+
+    assert job_details_url(
+        "https://career-ohb.csod.com/ux/ats/careersite/4/home/requisition/8433"
+        "?c=career-ohb"
+    ) == ("https://career-ohb.csod.com/services/x/job-requisition/v2/"
+          "requisitions/8433/jobDetails?cultureId=1")
+
+
+def test_job_details_url_returns_none_for_another_source():
+    from jobhunt.sources.cornerstone import job_details_url
+
+    assert job_details_url("https://boards.greenhouse.io/x/jobs/1") is None
+
+
+class _Response:
+    def __init__(self, payload=None, text=""):
+        self._payload = payload
+        self.text = text
+
+    def json(self):
+        return self._payload
+
+    def raise_for_status(self):
+        return None
+
+
+class _Client:
+    """Answers the home page with a token, then the detail service."""
+
+    def __init__(self, detail):
+        self.detail = detail
+        self.urls = []
+
+    def get(self, url, **kwargs):
+        self.urls.append(url)
+        if "/jobDetails" in url:
+            return _Response(payload=self.detail)
+        return _Response(text='csod.context = {"token":"anon-jwt"};')
+
+
+def test_posting_text_reads_the_advert_out_of_the_detail_service():
+    from jobhunt.sources.cornerstone import posting_text
+
+    client = _Client({"data": {
+        "externalDescription": "<ul><li>AOCS &amp; GNC algorithms</li></ul>",
+        "displayTitle": "AOCS & GNC Engineer",
+    }})
+    text = posting_text(
+        "https://career-ohb.csod.com/ux/ats/careersite/4/home/requisition/8433"
+        "?c=career-ohb", client)
+
+    assert "AOCS & GNC algorithms" in text
+    assert "<" not in text, "markup is stripped for the model"
+
+
+def test_posting_text_is_authorised_with_the_anonymous_token():
+    """Same anonymous JWT the search call needs; without it this 401s."""
+    from jobhunt.sources.cornerstone import posting_text
+
+    client = _Client({"data": {"externalDescription": "Navigation systems work"}})
+    posting_text(
+        "https://career-ohb.csod.com/ux/ats/careersite/4/home/requisition/8433"
+        "?c=career-ohb", client)
+
+    assert any("/home?c=career-ohb" in u for u in client.urls), "token is fetched"
+    assert any("/jobDetails" in u for u in client.urls)

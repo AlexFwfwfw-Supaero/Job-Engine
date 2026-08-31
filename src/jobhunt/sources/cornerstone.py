@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from urllib.parse import parse_qs, urlparse
 
 from jobhunt.models import Employer
+from jobhunt.posting_text import strip_html
 from jobhunt.sources.base import RawPosting
 
 NAME = "cornerstone"
@@ -107,6 +108,50 @@ def parse_jobs(payload: dict, employer: Employer) -> list[RawPosting]:
             external_id=str(requisition_id),
         ))
     return postings
+
+
+_REQUISITION_RE = re.compile(
+    r"^(?P<host>[a-z0-9-]+\.csod\.com)/ux/ats/careersite/\d+/home/requisition/"
+    r"(?P<id>\d+)")
+
+
+def job_details_url(url: str) -> str | None:
+    """Turn a browsable Cornerstone job URL into its detail endpoint.
+
+    The advert is not in the page. Cornerstone renders it in JavaScript, so
+    fetching the stored URL returns twenty kilobytes of chrome and no
+    description — the same trap Workday sets, and the reason fourteen OHB
+    postings sat unread. The service the page itself calls is under
+    `services/x/job-requisition`, which is not the base the search uses.
+    """
+    parsed = urlparse(url)
+    match = _REQUISITION_RE.match(f"{parsed.netloc}{parsed.path}")
+    if not match:
+        return None
+    return (f"https://{match.group('host')}/services/x/job-requisition/v2/"
+            f"requisitions/{match.group('id')}/jobDetails"
+            f"?cultureId={CULTURE_ID}")
+
+
+def posting_text(url: str, client) -> str:
+    """The advert for one posting, as plain text.
+
+    Takes the anonymous token the same way `fetch` does: the detail service
+    401s without it, and it is the same JWT the career site hands to every
+    visitor.
+    """
+    site = parse_endpoint(url)
+    page = client.get(site.home_url)
+    page.raise_for_status()
+
+    response = client.get(
+        job_details_url(url),
+        headers={"Authorization": f"Bearer {token_from_page(page.text)}"},
+    )
+    response.raise_for_status()
+    payload = response.json() or {}
+    data = payload.get("data", payload) or {}
+    return strip_html(data.get("externalDescription") or "")
 
 
 def fetch(

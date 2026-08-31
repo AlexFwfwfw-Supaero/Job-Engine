@@ -152,3 +152,22 @@ def test_talentsoft_text_stops_before_the_location_block():
     assert "Portalkran" in text
     assert "Localisation" not in text
     assert "Crit" not in text
+
+
+def test_fetch_posting_text_uses_the_detail_service_for_cornerstone():
+    """Cornerstone renders its adverts in JavaScript like Workday does, so the
+    plain HTML fallback returned chrome and enrich gave up. Fourteen OHB
+    postings — AOCS & GNC, flight dynamics, SAR — sat unread because of it."""
+    job = Job(employer_id=1, source="cornerstone", title="AOCS & GNC Engineer",
+              url="https://career-ohb.csod.com/ux/ats/careersite/4/home/"
+                  "requisition/8433?c=career-ohb")
+    calls = []
+
+    def reader(url, client):
+        calls.append(url)
+        return "Attitude and orbit control algorithms for Earth observation."
+
+    text = fetch_posting_text(job, client=None, cornerstone_reader=reader)
+
+    assert calls == [job.url]
+    assert "Attitude and orbit control" in text

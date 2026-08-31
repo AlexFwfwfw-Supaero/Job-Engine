@@ -106,12 +106,23 @@ def talentsoft_text(url: str, client) -> str:
     return _drop_talentsoft_furniture(strip_html(match.group(0) if match else ""))
 
 
-def fetch_posting_text(job: Job, client, html_fetcher=fetch_text) -> str:
+def _cornerstone_reader(url: str, client) -> str:
+    # Imported here, not at module scope: cornerstone.py needs strip_html from
+    # this module, and importing it back at the top would be a cycle.
+    from jobhunt.sources.cornerstone import posting_text
+
+    return posting_text(url, client)
+
+
+def fetch_posting_text(job: Job, client, html_fetcher=fetch_text,
+                       cornerstone_reader=None) -> str:
     """The posting's full text, by whichever route that source exposes it."""
     if job.source == "workday" and cxs_detail_url(job.url):
         text = _workday_text(job.url, client)
     elif job.source == "talentsoft":
         text = talentsoft_text(job.url, client)
+    elif job.source == "cornerstone":
+        text = (cornerstone_reader or _cornerstone_reader)(job.url, client)
     else:
         text = strip_html(html_fetcher(job.url, client))
 
