@@ -337,9 +337,17 @@ employers:
              to discard most of the board."}
   - {name: RTX, country: PL, city: Wroclaw, ats: manual, tags: [radar, defense],
      careers_url: "https://careers.rtx.com/global/en",
-     notes: "CONFIRMED reachable 2026-07-27. US group; the European footprint is
-             Collins Aerospace and Pratt & Whitney. Much of it is GB, which is
-             excluded, and US programme roles need US persons status."}
+     notes: "DECIDED AGAINST 2026-08-31, with numbers rather than a guess. The
+             board is Phenom and readable — POST /widgets with ddoKey
+             refineSearch returns clean JSON, no token needed — so this is a
+             choice, not a failure. Scanning 1500 postings: 1099 US, 141 CA,
+             51 GB, 39 PL, 15 DE, and searching navigation, GNSS, guidance,
+             radar and signal processing across 409 hits returned exactly four
+             in the EU, all Blagnac avionics certification and one Frankfurt
+             cyber role. Nothing in the domain. Writing a Phenom source for
+             this would add a fifteenth parser to reach four irrelevant jobs.
+             Revisit only if Collins Aerospace Europe grows a navigation team;
+             US programme roles need US persons status regardless."}
 
   # --- launch and propulsion ---
   # Not navigation work, but GNC, flight dynamics and avionics roles appear on
@@ -365,10 +373,18 @@ employers:
      notes: "ArianeGroup subsidiary. Star trackers — attitude determination, so
              genuinely in your estimation domain rather than adjacent to it.
              Domain did not resolve from the poller; verify in a browser."}
-  - {name: Exotrail, country: FR, city: Massy, ats: manual, tags: [launch, gnc],
-     careers_url: "https://www.exotrail.com/careers",
-     notes: "CONFIRMED reachable 2026-07-27. Electric propulsion and orbital
-             transfer; GNC and flight dynamics roles appear. No public API."}
+  - {name: Exotrail, country: FR, city: Massy, ats: rss,
+     ats_endpoint: "https://careers.exotrail.com/jobs.rss",
+     poll_enabled: true, tags: [launch, gnc],
+     careers_url: "https://careers.exotrail.com/jobs",
+     notes: "CONFIRMED 2026-08-31 — 39 postings with the full advert in each
+             item, so nothing needs a second fetch. Teamtailor, and its boards
+             publish /jobs.rss, which means no new parser: the DLR feed reader
+             handles it. Unlike DLR's, this feed is the whole board rather
+             than the ten newest. The 2026-07-27 note said 'no public API' and
+             was reading www.exotrail.com; the board is on
+             careers.exotrail.com. Four GNC roles including GNC Architect and
+             Ingenieur GNC. The feed carries no location, so Massy stands."}
   - {name: HyPrSpace, country: FR, city: Saint-Medard-en-Jalles, ats: manual,
      tags: [launch, propulsion, sme],
      careers_url: "https://www.hyprspace.fr/",
