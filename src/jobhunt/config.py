@@ -142,6 +142,7 @@ def load_employers(path: Path) -> list[Employer]:
             ats=e.get("ats", "manual"), ats_endpoint=e.get("ats_endpoint", ""),
             careers_url=e.get("careers_url", ""), tags=e.get("tags", []),
             poll_enabled=bool(e.get("poll_enabled", False)),
+            read_everything=bool(e.get("read_everything", False)),
             notes=e.get("notes", ""),
         )
         for e in raw.get("employers", [])

@@ -41,6 +41,10 @@ class Employer:
     careers_url: str = ""
     tags: list[str] = field(default_factory=list)
     poll_enabled: bool = False
+    # Keep postings the keyword list could not judge, for the model to read.
+    # Only for boards small enough to read in full: research institutes write
+    # bespoke titles, and their boards are in the tens, not the thousands.
+    read_everything: bool = False
     last_polled: str | None = None
     last_manual_check: str | None = None
     notes: str = ""

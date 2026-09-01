@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS employers (
     careers_url TEXT DEFAULT '',
     tags TEXT DEFAULT '[]',
     poll_enabled INTEGER DEFAULT 0,
+    read_everything INTEGER DEFAULT 0,
     last_polled TEXT,
     last_manual_check TEXT,
     notes TEXT DEFAULT ''
@@ -108,8 +109,15 @@ _PRESERVED_ON_REUPSERT = (
     "description", "llm_fit", "llm_json", "llm_checked", "rank_score",
 )
 
-# Columns added after the first release. Applied to existing databases by
-# _migrate(); listed here so a fresh database and a migrated one converge.
+# Columns added to `employers` after release. Same idempotent ALTER as the
+# jobs table, kept separate because the two tables migrate independently.
+_ADDED_EMPLOYER_COLUMNS = (
+    ("read_everything", "INTEGER DEFAULT 0"),
+)
+
+# Columns added to `jobs` after the first release. Applied to existing
+# databases by _migrate(); listed here so a fresh database and a migrated one
+# converge.
 _ADDED_COLUMNS = (
     ("notes", "TEXT DEFAULT ''"),
     ("priority", "INTEGER DEFAULT 0"),
@@ -156,6 +164,15 @@ class Store:
         for column, ddl in _ADDED_COLUMNS:
             if column not in existing:
                 self.conn.execute(f"ALTER TABLE jobs ADD COLUMN {column} {ddl}")
+
+        existing_employer = {
+            row["name"]
+            for row in self.conn.execute("PRAGMA table_info(employers)").fetchall()
+        }
+        for column, ddl in _ADDED_EMPLOYER_COLUMNS:
+            if column not in existing_employer:
+                self.conn.execute(
+                    f"ALTER TABLE employers ADD COLUMN {column} {ddl}")
         self.conn.commit()
 
     def close(self) -> None:
@@ -168,17 +185,18 @@ class Store:
             """
             INSERT INTO employers
                 (name, country, city, ats, ats_endpoint, careers_url, tags,
-                 poll_enabled, last_polled, last_manual_check, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 poll_enabled, last_polled, last_manual_check, notes,
+                 read_everything)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(name) DO UPDATE SET
                 country=excluded.country, city=excluded.city, ats=excluded.ats,
                 ats_endpoint=excluded.ats_endpoint, careers_url=excluded.careers_url,
                 tags=excluded.tags, poll_enabled=excluded.poll_enabled,
-                notes=excluded.notes
+                notes=excluded.notes, read_everything=excluded.read_everything
             """,
             (e.name, e.country, e.city, e.ats, e.ats_endpoint, e.careers_url,
              json.dumps(e.tags), int(e.poll_enabled), e.last_polled,
-             e.last_manual_check, e.notes),
+             e.last_manual_check, e.notes, int(e.read_everything)),
         )
         self.conn.commit()
         row = self.conn.execute(
@@ -452,6 +470,7 @@ def _row_to_employer(row: sqlite3.Row) -> Employer:
         ats=row["ats"], ats_endpoint=row["ats_endpoint"],
         careers_url=row["careers_url"], tags=json.loads(row["tags"]),
         poll_enabled=bool(row["poll_enabled"]), last_polled=row["last_polled"],
+        read_everything=bool(row["read_everything"]),
         last_manual_check=row["last_manual_check"], notes=row["notes"],
     )
 

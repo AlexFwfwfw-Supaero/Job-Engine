@@ -165,12 +165,21 @@ def _score_and_store(
     comp_cfg: CompConfig,
     cities: dict[str, City],
     now: str,
+    keep_unmatched: bool = False,
 ) -> bool:
-    """Store a posting if the matcher considers it relevant. True when stored."""
+    """Store a posting if the matcher considers it relevant. True when stored.
+
+    `keep_unmatched` keeps the ones the keyword list merely failed to
+    recognise, for boards small enough that the model can read them all. It
+    does not keep the ones the negative list or the country filter rejected:
+    those are decisions, not gaps in vocabulary.
+    """
     country = posting.country or employer.country
     match = evaluate(posting.title, posting.description, country, cfg)
     if not match.relevant:
-        return False
+        undecided = match.reasons[:1] == [NO_FAMILY_MATCHED]
+        if not (keep_unmatched and undecided):
+            return False
 
     level = infer_level(posting.title, posting.level)
     city_entry = cities.get(posting.city.lower()) if posting.city else None
@@ -211,6 +220,7 @@ def poll_employer(
     now: str,
     detail_text: Callable[[str, object], str] | None = None,
     detail_budget: int = 0,
+    keep_unmatched: bool = False,
     **source_kwargs,
 ) -> PollReport:
     """Fetch one employer's postings, match them, and store what is relevant.
@@ -263,7 +273,8 @@ def poll_employer(
                 pass
             store.mark_screened(posting.url, employer.id, now)
         was_known = posting.url in known
-        if _score_and_store(store, employer, posting, cfg, comp_cfg, cities, now):
+        if _score_and_store(store, employer, posting, cfg, comp_cfg, cities,
+                            now, keep_unmatched=keep_unmatched):
             report.stored += 1
             if not was_known:
                 report.new += 1
@@ -333,6 +344,7 @@ def poll_all(
             store, employer, source, client, cfg, comp_cfg, cities, now,
             detail_text=readers.get(employer.ats),
             detail_budget=detail_budget,
+            keep_unmatched=employer.read_everything,
             **source_kwargs(employer.ats, cfg, common_kwargs),
         ))
     return reports

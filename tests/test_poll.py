@@ -666,3 +666,93 @@ def test_polling_stores_a_phd_at_doctoral_level(store, cfg, comp_cfg, cities):
                   cfg, comp_cfg, cities, now="2026-08-31T00:00:00Z")
 
     assert store.list_jobs()[0].level == "phd"
+
+
+# --- boards the keyword list cannot judge -------------------------------
+
+def test_a_research_board_stores_what_the_matcher_rejects(
+        store, cfg, comp_cfg, cities):
+    """Research institutes do not write standardised titles. ONERA advertises
+    a cold-atom interferometer and a Langatate MEMS gyroscope — quantum
+    inertial sensing and gyro development, both squarely in the domain, and
+    both matching no keyword at all. Asked to read them, the model scored
+    each 0.62 and called them "foundational to inertial navigation".
+
+    So on a board small enough to read in full, a keyword miss must not be
+    the final word: the posting is kept at role_fit 0 for the model to judge.
+    """
+    store.upsert_employer(Employer(name="ONERA Doctoral"))
+    found = [posting("Développement d'un interféromètre à atomes froids",
+                     "https://o/1", city="Palaiseau", country="FR")]
+
+    report = poll_employer(
+        store, Employer(name="ONERA Doctoral"), fake_source(found), None,
+        cfg, comp_cfg, cities, now="2026-08-31T00:00:00Z", keep_unmatched=True)
+
+    assert report.stored == 1
+    job = store.list_jobs()[0]
+    assert job.role_fit == 0.0, "the matcher's verdict is recorded honestly"
+
+    # It is kept, not promoted: a posting the keyword list could not read
+    # still ranks below one it could, until the model says otherwise.
+    matched = [posting("GNSS Engineer", "https://o/9", country="FR")]
+    poll_employer(store, Employer(name="ONERA Doctoral"), fake_source(matched),
+                  None, cfg, comp_cfg, cities, now="2026-08-31T00:00:00Z",
+                  keep_unmatched=True)
+    by_score = sorted(store.list_jobs(), key=lambda j: -j.total_score)
+    assert by_score[0].title == "GNSS Engineer"
+
+
+def test_an_unmatched_posting_is_still_dropped_by_the_hard_filters(
+        store, cfg, comp_cfg, cities):
+    """Keeping the undecided does not mean keeping the rejected. An excluded
+    country and a negative keyword are decisions, not gaps in vocabulary."""
+    store.upsert_employer(Employer(name="ONERA Doctoral"))
+    found = [
+        posting("Land Surveyor", "https://o/2", country="FR"),
+        posting("Thesis on something", "https://o/3", city="Bristol",
+                country="GB"),
+    ]
+
+    report = poll_employer(
+        store, Employer(name="ONERA Doctoral"), fake_source(found), None,
+        cfg, comp_cfg, cities, now="2026-08-31T00:00:00Z", keep_unmatched=True)
+
+    assert report.stored == 0
+    assert store.list_jobs() == []
+
+
+def test_a_big_board_still_drops_what_does_not_match(
+        store, cfg, comp_cfg, cities):
+    """The default, and why this is opt-in per employer: Safran alone drops
+    3700 postings a sweep, and reading those would cost twelve hours."""
+    store.upsert_employer(Employer(name="Safran"))
+    found = [posting("Ajusteur F/H", "https://s/1", country="FR")]
+
+    report = poll_employer(
+        store, Employer(name="Safran"), fake_source(found), None,
+        cfg, comp_cfg, cities, now="2026-08-31T00:00:00Z")
+
+    assert report.stored == 0
+
+
+def test_poll_all_honours_the_employers_read_everything_flag(
+        store, cfg, comp_cfg, cities):
+    """Per employer, not global: the same sweep that keeps ONERA's unreadable
+    titles must still drop Safran's three thousand."""
+    store.upsert_employer(Employer(name="ONERA Doctoral", ats="onera_theses",
+                                   poll_enabled=True, country="FR",
+                                   read_everything=True))
+    store.upsert_employer(Employer(name="Safran", ats="talentsoft",
+                                   poll_enabled=True, country="FR"))
+    registry = {
+        "onera_theses": fake_source([posting(
+            "Interféromètre à atomes froids", "https://o/1", country="FR")]),
+        "talentsoft": fake_source([posting(
+            "Ajusteur F/H", "https://s/1", country="FR")]),
+    }
+
+    poll_all(store, registry, None, cfg, comp_cfg, cities,
+             now="2026-08-31T00:00:00Z")
+
+    assert [j.title for j in store.list_jobs()] == ["Interféromètre à atomes froids"]

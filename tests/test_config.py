@@ -144,3 +144,22 @@ def test_the_search_vocabulary_asks_in_french_too():
     terms = {t.lower() for t in load_scoring(Path("config/scoring.yaml")).poll_search_terms}
     for wanted in ("guidage", "inertielle", "traitement du signal"):
         assert wanted in terms, wanted
+
+
+def test_an_employer_can_ask_for_everything_it_publishes(tmp_path):
+    """Research institutes do not write standardised titles, and their boards
+    are small. `read_everything` says: keep what the keyword list could not
+    judge, and let the model read it."""
+    from jobhunt.config import load_employers
+
+    p = tmp_path / "employers.yaml"
+    p.write_text(
+        "employers:\n"
+        "  - {name: ONERA Doctoral, country: FR, ats: onera_theses,\n"
+        "     poll_enabled: true, read_everything: true}\n"
+        "  - {name: Safran, country: FR, ats: talentsoft, poll_enabled: true}\n",
+        encoding="utf-8")
+    onera, safran = load_employers(p)
+
+    assert onera.read_everything is True
+    assert safran.read_everything is False, "off unless asked for"

@@ -148,7 +148,7 @@ employers:
              HIGH PRIORITY: the Institute of Communications and Navigation is
              here."}
   - {name: Fraunhofer IIS, country: DE, city: Nuremberg, ats: softgarden,
-     ats_endpoint: "iisfraunhofer", poll_enabled: true,
+     ats_endpoint: "iisfraunhofer", poll_enabled: true, read_everything: true,
      tags: [gnss, research, phd],
      careers_url: "https://www.iis.fraunhofer.de/en/jobs/stellen.html",
      notes: "CONFIRMED 2026-08-31 — softgarden widget, 29 postings, the whole
@@ -161,7 +161,7 @@ employers:
              route."}
   - {name: CNES, country: FR, city: Toulouse, ats: sitemap,
      ats_endpoint: "https://recrutement.cnes.fr/sitemap.xml#/fr/annonce/",
-     poll_enabled: true, tags: [space, agency],
+     poll_enabled: true, read_everything: true, tags: [space, agency],
      careers_url: "https://recrutement.cnes.fr/en/annonces",
      notes: "CONFIRMED 2026-08-10 — 10 postings. The 2026-07-27 note saying
              Cegid Talentsoft was wrong: it is Digital Recruiters, a Nuxt app
@@ -173,7 +173,7 @@ employers:
              sweep and ten pages of enrichment stay well inside that."}
   - {name: ONERA, country: FR, city: Palaiseau, ats: talentlink,
      ats_endpoint: "P6VFK026203F3VBQB68LOF6Z3",
-     poll_enabled: true, tags: [radar, research, phd],
+     poll_enabled: true, read_everything: true, tags: [radar, research, phd],
      careers_url: "https://rejoindre.onera.fr/",
      notes: "CONFIRMED 2026-07-28 — TalentLink/Lumesse widget, ~91 postings.
              Nothing is in the page HTML; the widget's REST call is what
@@ -189,7 +189,7 @@ employers:
                     https://w3.onera.fr/formationparlarecherche/theses-dota,
                     https://w3.onera.fr/formationparlarecherche/theses-dphy,
                     https://w3.onera.fr/formationparlarecherche/theses-dmpe",
-     poll_enabled: true, tags: [radar, research, phd],
+     poll_enabled: true, read_everything: true, tags: [radar, research, phd],
      careers_url: "https://w3.onera.fr/formationparlarecherche/propositions-theses",
      notes: "CONFIRMED 2026-07-28 — five department pages of doctoral offers,
              separate from the TalentLink feed under the ONERA entry. DEMR is
@@ -198,7 +198,15 @@ employers:
              CRITICAL: each page lists filled positions under 'Pourvu' FIRST
              and open ones under 'A pourvoir' second. Only the latter are
              polled. Postings are stored at level phd, so they are priced
-             against a doctoral salary rather than a graduate one."}
+             against a doctoral salary rather than a graduate one.
+             read_everything is on here for a reason this board makes plain:
+             a research institute writes a bespoke title per thesis, so a
+             keyword list is the wrong instrument. Asked to read the theses
+             it had rejected, the model scored a cold-atom interferometer and
+             a Langatate MEMS gyroscope 0.62 each and called both foundational
+             to inertial navigation — neither matched a single keyword. 104
+             theses is twenty minutes of model time; Safran's 3803 would be
+             twelve hours, which is why this is per employer and not global."}
 
   # --- universities ---
   - {name: Universitaet der Bundeswehr Muenchen, country: DE, city: Munich,
