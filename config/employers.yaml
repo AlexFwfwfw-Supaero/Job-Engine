@@ -78,9 +78,19 @@ employers:
              comes from the model reading the page."}
   - {name: Telespazio, country: IT, city: Rome, ats: manual, tags: [gnss, space],
      careers_url: "https://www.telespazio.com/en/careers"}
-  - {name: Leonardo, country: IT, city: Rome, ats: manual, tags: [radar, defense],
-     careers_url: "https://www.leonardo.com/en/careers"}
-
+  - {name: Leonardo, country: IT, city: Roma, ats: workday,
+     ats_endpoint: "https://leonardocompany.wd3.myworkdayjobs.com/wday/cxs/leonardocompany/LeonardoCareerSite/jobs",
+     poll_enabled: true, tags: [radar, defense, space],
+     careers_url: "https://leonardocompany.wd3.myworkdayjobs.com/en-US/LeonardoCareerSite",
+     notes: "CONFIRMED 2026-08-31 — Workday, 666 jobs, tenant leonardocompany.
+             Telespazio's own careers page links here too, so this one entry
+             covers both. The 2026-07-27 probe found nothing because it read
+             leonardo.com, which does not name its ATS anywhere.
+             This tenant is why workday.split_location exists: it writes
+             'IT - Torino - C.so Francia', so its British sites (Yeovil,
+             Basildon, Edinburgh, Luton) would otherwise have been stored as
+             Italian and slipped past the UK exclusion. 285 hits for 'tesi'
+             and an Astro Dynamics Engineer at ESOC Darmstadt."}
   - {name: Beyond Gravity, country: CH, city: Zurich, ats: successfactors,
      ats_endpoint: "https://careers.beyondgravity.com/BeyondGravity",
      poll_enabled: true, tags: [space, industry],

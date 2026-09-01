@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from urllib.parse import urljoin
 
 from jobhunt.models import Employer
@@ -22,6 +24,46 @@ def _job_url(external_path: str, employer: Employer) -> str:
     return urljoin(base + "/", external_path.lstrip("/"))
 
 
+# "IT - Torino - C.so Francia". Only an uppercase two-letter code counts: the
+# separator is common enough that "Rome - Via Tiburtina" would otherwise lose
+# its city to a country that does not exist.
+_COUNTRY_PREFIX_RE = re.compile(r"^(?P<country>[A-Z]{2})\s*-\s*(?P<rest>.+)$")
+
+
+def _path_location(external_path: str) -> str:
+    """`'/job/GB---Edinburgh/Systems-Engineer_R1'` -> `'GB - Edinburgh'`.
+
+    Workday slugifies the location into the path with the separators tripled.
+    """
+    parts = [p for p in (external_path or "").split("/") if p]
+    if len(parts) < 2 or parts[0] != "job":
+        return ""
+    # Order matters: a single "-" is a space inside a name ("Coldharbour-Lane"),
+    # so the triple separators have to be taken out first or the pass for
+    # single ones eats the separator this just created.
+    return " - ".join(
+        segment.replace("-", " ").strip() for segment in parts[1].split("---")
+    ).strip()
+
+
+def split_location(raw: str) -> tuple[str, str]:
+    """`'IT - Torino - C.so Francia'` -> `('Torino', 'IT')`.
+
+    Workday carries no country field, so every posting on a tenant used to be
+    stamped with the employer's own — which put Yeovil and Basildon in the
+    results as Italian jobs, and Airbus's Getafe and Bristol postings in as
+    German ones. Some tenants do state it, in the location string. Where they
+    do it is believed; where they do not the caller keeps its default, because
+    "Toulouse Area" says nothing about a country.
+    """
+    text = (raw or "").strip()
+    match = _COUNTRY_PREFIX_RE.match(text)
+    if not match:
+        return text, ""
+    # "DE - Darmstadt - ESOC": the site name after the town is not the town.
+    return match.group("rest").split(" - ")[0].strip(), match.group("country")
+
+
 def parse_jobs(payload: dict, employer: Employer) -> list[RawPosting]:
     """Turn a Workday CXS response into postings.
 
@@ -31,13 +73,22 @@ def parse_jobs(payload: dict, employer: Employer) -> list[RawPosting]:
     postings: list[RawPosting] = []
     for job in (payload or {}).get("jobPostings", []) or []:
         bullets = job.get("bulletFields") or []
+        external_path = job.get("externalPath", "") or ""
+        city, country = split_location(job.get("locationsText", "") or "")
+        if not country:
+            # "2 Locations" states nothing, but the path keeps the primary
+            # site: /job/GB---Edinburgh/Systems-Engineer_R1. Five of
+            # Leonardo's first ten stored jobs were British, filed as Italian.
+            path_city, path_country = split_location(_path_location(external_path))
+            if path_country:
+                city, country = path_city, path_country
         postings.append(RawPosting(
             source=NAME,
-            url=_job_url(job.get("externalPath", ""), employer),
+            url=_job_url(external_path, employer),
             title=job.get("title", "") or "",
             employer_name=employer.name,
-            city=job.get("locationsText", "") or "",
-            country=employer.country,
+            city=city,
+            country=country or employer.country,
             description=job.get("title", "") or "",
             external_id=bullets[0] if bullets else "",
         ))

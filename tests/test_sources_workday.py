@@ -160,3 +160,85 @@ def test_a_failing_term_does_not_lose_the_others(employer):
     postings = fetch(employer, FlakyClient([]), page_size=20, max_pages=1,
                      search_terms=["gnss", "radar", "kalman"])
     assert [p.title for p in postings] == ["GNSS Engineer"]
+
+
+# --- locations that state their own country -----------------------------
+
+def test_a_country_prefixed_location_is_believed_over_the_employers():
+    """Leonardo writes "IT - Torino - C.so Francia" and its tenant carries
+    Italian, British, German and Polish sites on one board. Stamping them all
+    with the employer's country puts Yeovil and Basildon — both excluded — in
+    the results as Italian jobs."""
+    from jobhunt.sources.workday import split_location
+
+    assert split_location("IT - Torino - C.so Francia") == ("Torino", "IT")
+    assert split_location("GB - Yeovil - Lysander Rd") == ("Yeovil", "GB")
+    assert split_location("DE - Darmstadt - ESOC") == ("Darmstadt", "DE")
+
+
+def test_a_plain_location_keeps_the_employers_country():
+    """Airbus and Thales write "Toulouse Area" with no country prefix, so
+    there is nothing to read and the employer's own stays."""
+    from jobhunt.sources.workday import split_location
+
+    assert split_location("Toulouse Area") == ("Toulouse Area", "")
+    assert split_location("2 Locations") == ("2 Locations", "")
+    assert split_location("") == ("", "")
+
+
+def test_a_lookalike_prefix_is_not_mistaken_for_a_country():
+    """Only a two-letter uppercase code counts. Without one, the string is
+    left exactly as the tenant wrote it rather than being carved up on a
+    separator that means nothing here — "Rome - Via Tiburtina" is a street
+    address, and guessing which half is the town is how "Toulouse Area"
+    became a city nobody could match."""
+    from jobhunt.sources.workday import split_location
+
+    assert split_location("Rome - Via Tiburtina") == ("Rome - Via Tiburtina", "")
+    assert split_location("us - Melbourne") == ("us - Melbourne", "")
+    assert split_location("US - Melbourne - FL") == ("Melbourne", "US")
+
+
+def test_parse_jobs_uses_the_stated_country(employer):
+    from jobhunt.sources.workday import parse_jobs
+
+    payload = {"jobPostings": [
+        {"title": "Radar Systems Engineer", "externalPath": "/job/x_R1",
+         "locationsText": "GB - Edinburgh"},
+        {"title": "Astro Dynamics Engineer", "externalPath": "/job/y_R2",
+         "locationsText": "DE - Darmstadt - ESOC"},
+    ]}
+    postings = parse_jobs(payload, employer)
+
+    assert [(p.city, p.country) for p in postings] == [
+        ("Edinburgh", "GB"), ("Darmstadt", "DE")]
+
+
+def test_a_multi_location_posting_falls_back_to_its_path(employer):
+    """Workday collapses a posting advertised at several sites into
+    "2 Locations", which states no country at all — and five of Leonardo's ten
+    stored jobs came back that way, filed as Italian while their paths said
+    GB - Edinburgh. The externalPath keeps the primary site."""
+    from jobhunt.sources.workday import parse_jobs
+
+    payload = {"jobPostings": [{
+        "title": "Systems Engineer - Antenna/Electromagnetic",
+        "externalPath": "/job/GB---Edinburgh/Systems-Engineer---Antenna_R1",
+        "locationsText": "2 Locations",
+    }]}
+    posting = parse_jobs(payload, employer)[0]
+
+    assert posting.country == "GB"
+    assert posting.city == "Edinburgh"
+
+
+def test_a_path_without_a_country_leaves_the_employers_own(employer):
+    from jobhunt.sources.workday import parse_jobs
+
+    payload = {"jobPostings": [{
+        "title": "GNSS Engineer", "externalPath": "/job/Toulouse-Area/GNSS_R2",
+        "locationsText": "2 Locations",
+    }]}
+    posting = parse_jobs(payload, employer)[0]
+
+    assert posting.country == employer.country
