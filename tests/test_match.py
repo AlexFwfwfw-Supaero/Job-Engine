@@ -421,3 +421,32 @@ def test_the_title_still_speaks_for_itself():
     unlike one buried in a page of corporate description."""
     cfg = _live_cfg()
     assert evaluate("Ingénieur GNSS F/H", "", "FR", cfg).role_fit > 0.0
+
+
+def test_drone_guidance_and_control_work_is_matched():
+    """ONERA's doctoral pages are the evidence. "Apprentissage par
+    renforcement profond pour la commande de drones" and "Coordination d'un
+    essaim de drones" matched no keyword at all: the families had "gnc" and
+    "flight dynamics" but neither "drone" nor the French word for control.
+    Guidance and control of an air vehicle is the C in GNC."""
+    cfg = _live_cfg()
+    for title in [
+        "Apprentissage par renforcement profond pour la commande de drones",
+        "Deep reinforcement learning for UAV control",
+        "Commande et automatique des véhicules autonomes",
+    ]:
+        assert evaluate(title, "", "FR", cfg).role_fit > 0, title
+
+
+def test_control_of_a_flow_or_a_process_is_not_vehicle_control():
+    """The counterweight. ONERA also runs "Modélisation et contrôle en boucle
+    fermée d'écoulements" and thermoacoustic engine control, which are
+    fluid-dynamics theses. Bare "contrôle" would take both, so the keywords
+    stay qualified."""
+    cfg = _live_cfg()
+    for title in [
+        "Modélisation et contrôle en boucle fermée d'écoulements résonateurs",
+        "Analysis of thermoacoustic phase-change driven engine: stability and control",
+        "Contrôle qualité des pièces usinées",
+    ]:
+        assert evaluate(title, "", "FR", cfg).role_fit == 0.0, title

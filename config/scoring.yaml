@@ -225,6 +225,17 @@ role_families:
                # flight dynamics; without it their only in-domain opening
                # scored zero.
                "dynamique du vol", "mecanique spatiale",
+               # The C in GNC. The family had "gnc" and "flight dynamics" but
+               # no word for the vehicle or for control in French, so ONERA's
+               # "commande de drones" and "essaim de drones" theses matched
+               # nothing at all. Every one of these is qualified: bare
+               # "commande" and bare "controle" would take the closed-loop
+               # flow-control and thermoacoustic-engine theses on the same
+               # pages, which are fluid dynamics.
+               "drone", "uav", "commande de vol", "commande de drones",
+               "commande des drones", "vehicule autonome", "vehicules autonomes",
+               "autonomous vehicle", "flight control", "attitude control",
+               "controle d'attitude", "essaim de drones", "swarm",
                # German: DLR, OHB, Airbus DS and Beyond Gravity post in German
                # and had no keyword of their own until now.
                "tragheitsnavigation", "bahnbestimmung", "flugregelung",
