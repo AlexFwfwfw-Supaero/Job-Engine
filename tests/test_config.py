@@ -129,3 +129,18 @@ def test_the_search_vocabulary_asks_for_doctoral_work():
     terms = {t.lower() for t in load_scoring(Path("config/scoring.yaml")).poll_search_terms}
     for wanted in ("phd", "doktorand", "thèse", "cifre", "doctorant"):
         assert any(wanted in t for t in terms), wanted
+
+
+def test_the_search_vocabulary_asks_in_french_too():
+    """Workday searches its own text, so an English-only term list never
+    reaches a French tenant's postings. ArianeGroup's one navigation role,
+    "Ingénieure Guidage Lanceurs et Véhicules de rentrée", is returned by
+    "guidage" and by nothing else in the list — the same failure that made a
+    German-language addition necessary for Airbus DS."""
+    from pathlib import Path
+
+    from jobhunt.config import load_scoring
+
+    terms = {t.lower() for t in load_scoring(Path("config/scoring.yaml")).poll_search_terms}
+    for wanted in ("guidage", "inertielle", "traitement du signal"):
+        assert wanted in terms, wanted

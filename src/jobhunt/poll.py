@@ -11,7 +11,8 @@ from jobhunt.posting_text import talentsoft_text
 from jobhunt.score import compensation, quality_of_life, total_score
 from jobhunt.sources import (
     breezy, capgemini, cornerstone, euraxess, greenhouse, onera_theses, recruitee, rss,
-    sii, sitemap, smartrecruiters, successfactors, talentlink, talentsoft, workday,
+    sii, sitemap, smartrecruiters, softgarden, successfactors, talentlink, talentsoft,
+    workday,
 )
 from jobhunt.sources.base import RawPosting
 from jobhunt.store import LAST_SEARCH_AT, Store
@@ -33,12 +34,14 @@ SOURCE_REGISTRY: dict[str, Callable] = {
     onera_theses.NAME: onera_theses.fetch,
     talentsoft.NAME: talentsoft.fetch,
     sitemap.NAME: sitemap.fetch,
+    softgarden.NAME: softgarden.fetch,
 }
 
 # Sources that return their whole board in one unpaginated response and so
 # take no max_pages; passing one would raise TypeError.
 UNPAGINATED = frozenset({breezy.NAME, greenhouse.NAME, recruitee.NAME,
-                        rss.NAME, onera_theses.NAME, sitemap.NAME})
+                        rss.NAME, onera_theses.NAME, sitemap.NAME,
+                         softgarden.NAME})
 
 
 def source_kwargs(ats: str, cfg: ScoringConfig, common: dict) -> dict:

@@ -153,6 +153,15 @@ poll_search_terms:
   - thèse
   - cifre
   - doctorant
+  # French tenants search their own text too, and ArianeGroup, Safran and
+  # Dassault all post in French. Its one navigation role — "Ingénieure Guidage
+  # Lanceurs et Véhicules de rentrée" — is returned by "guidage" and by
+  # nothing else above, exactly as the German terms were needed for Airbus DS.
+  - guidage
+  - inertielle
+  - traitement du signal
+  - trajectographie
+  - asservissement
   - sensorfusion
   - regelungstechnik
 

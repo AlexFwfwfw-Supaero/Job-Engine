@@ -137,8 +137,18 @@ employers:
              one. Carries full advert text, so what it catches needs no fetch.
              HIGH PRIORITY: the Institute of Communications and Navigation is
              here."}
-  - {name: Fraunhofer IIS, country: DE, city: Nuremberg, ats: manual, tags: [gnss, research, phd],
-     careers_url: "https://www.iis.fraunhofer.de/en/jobs/stellen.html"}
+  - {name: Fraunhofer IIS, country: DE, city: Nuremberg, ats: softgarden,
+     ats_endpoint: "iisfraunhofer", poll_enabled: true,
+     tags: [gnss, research, phd],
+     careers_url: "https://www.iis.fraunhofer.de/en/jobs/stellen.html",
+     notes: "CONFIRMED 2026-08-31 — softgarden widget, 29 postings, the whole
+             board in one server-rendered response. Small because IIS is one
+             institute, not because the fetch is truncated: pages, offsets and
+             limits all return the identical 29 rows. Rows state softgarden's
+             own audience, so Werkstudent and Auszubildende arrive marked
+             student rather than priced as graduate posts. Erlangen, Nurnberg
+             and Fuerth. Home of the Galileo signal work and a genuine PhD
+             route."}
   - {name: CNES, country: FR, city: Toulouse, ats: sitemap,
      ats_endpoint: "https://recrutement.cnes.fr/sitemap.xml#/fr/annonce/",
      poll_enabled: true, tags: [space, agency],
