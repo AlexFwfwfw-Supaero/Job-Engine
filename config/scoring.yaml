@@ -143,6 +143,16 @@ poll_search_terms:
   # text, so an English-only term list never reaches their postings.
   - signalverarbeitung
   - navigationssysteme
+  # Doctoral work is a contract type, not a subject, so no domain term ever
+  # retrieves it: a tenant asked for "navigation" does not return "PHD
+  # Position in Spacecraft GNC Engineering". Every funded thesis in the
+  # database until now was found by accident, on a domain word that happened
+  # to be in the title. The matcher still decides relevance afterwards.
+  - phd
+  - doktorand
+  - thèse
+  - cifre
+  - doctorant
   - sensorfusion
   - regelungstechnik
 

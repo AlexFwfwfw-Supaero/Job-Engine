@@ -171,3 +171,17 @@ def test_fetch_posting_text_uses_the_detail_service_for_cornerstone():
 
     assert calls == [job.url]
     assert "Attitude and orbit control" in text
+
+
+def test_a_hand_added_workday_url_still_uses_the_cxs_endpoint():
+    """Manual entry records source="manual", but the URL is whatever the
+    operator pasted. Keying the route on the source alone sent a pasted
+    Workday link down the plain-HTML path, which returns chrome."""
+    job = Job(employer_id=1, source="manual", title="Navigation Engineer",
+              url="https://thales.wd3.myworkdayjobs.com/en-US/Careers/job/Roma/"
+                  "Navigation-Payload-AIV-Engineer_R0307056")
+    payload = {"jobPostingInfo": {"jobDescription": "<p>GNSS payload work on Galileo, and navigation performance analysis for the ground segment.</p>"}}
+    client = FakeClient(FakeResponse(payload))
+
+    assert "GNSS payload work" in fetch_posting_text(job, client)
+    assert "/wday/cxs/" in client.urls[0]

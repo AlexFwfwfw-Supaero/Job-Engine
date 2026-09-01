@@ -291,15 +291,34 @@ employers:
   # nationals only for programme roles, regardless of EU citizenship.
   - {name: MBDA, country: FR, city: Le Plessis-Robinson, ats: manual,
      tags: [radar, guidance, defense],
-     careers_url: "https://www.mbda-careers.com/",
-     notes: "Sites in FR, DE, IT and GB. Probed 2026-07-27: no public board API
-             found, and the domain did not resolve from the poller — verify the
-             careers URL in a browser. Guidance and seeker work is a direct
-             match; clearance and nationality rules are the real filter."}
-  - {name: Dassault Aviation, country: FR, city: Saint-Cloud, ats: manual,
-     tags: [avionics, defense],
-     careers_url: "https://www.dassault-aviation.com/en/group/careers/",
-     notes: "CONFIRMED reachable 2026-07-27. Custom portal, no public API."}
+     careers_url: "https://www.mbda-systems.com/careers/",
+     notes: "PARTIAL 2026-08-31. MBDA is Workday, tenant 'mbda', one site per
+             country — but only MBDA-Italy (304 jobs) answers. MBDA-France
+             returns Workday's own 403 'permission denied', so the French
+             board is not published to anonymous callers at all; MBDA-UK works
+             and is excluded by the UK rule. mbda-careers.com no longer
+             resolves anywhere, which is why the 2026-07-27 probe found
+             nothing. Italy is pollable if you want Rome and La Spezia;
+             France, the site that matters for guidance and seekers, has to
+             stay manual. Clearance and nationality rules are the real filter
+             here in any case."}
+  - {name: MBDA Italia, country: IT, city: Roma, ats: workday,
+     ats_endpoint: "https://mbda.wd3.myworkdayjobs.com/wday/cxs/mbda/MBDA-Italy/jobs",
+     poll_enabled: true, tags: [radar, guidance, defense],
+     careers_url: "https://mbda.wd3.myworkdayjobs.com/it-IT/MBDA-Italy",
+     notes: "CONFIRMED 2026-08-31 — 304 jobs. The one MBDA board that answers
+             an anonymous request. Seekers, guidance and RF at Roma, La Spezia
+             and Fusaro."}
+  - {name: Dassault Aviation, country: FR, city: Saint-Cloud, ats: talentsoft,
+     ats_endpoint: "https://dassault-aviation-cand.talent-soft.com",
+     poll_enabled: true, tags: [avionics, defense],
+     careers_url: "https://dassault-aviation-cand.talent-soft.com/offre-de-emploi/liste-offres.aspx",
+     notes: "CONFIRMED 2026-08-31 — Talentsoft, the same platform as Safran,
+             so the same parser and the same caveat: rows carry no advert and
+             the detail page is read for titles the matcher cannot decide.
+             The 2026-07-27 probe called it a custom portal with no API; the
+             portal is on a separate host linked from the marketing page.
+             Rafale, Falcon, nEUROn — avionics and flight controls."}
   - {name: Dassault Systemes, country: FR, city: Velizy-Villacoublay, ats: manual,
      tags: [software, simulation],
      careers_url: "https://www.3ds.com/careers/jobs",
@@ -320,11 +339,16 @@ employers:
      careers_url: "https://maiaspace.recruitee.com/",
      notes: "CONFIRMED 2026-07-27 — Recruitee 'maiaspace', ~27 postings across
              Vernon, Paris-La Defense and Kourou. ArianeGroup subsidiary."}
-  - {name: ArianeGroup, country: FR, city: Les Mureaux, ats: manual,
-     tags: [launch, propulsion],
-     careers_url: "https://www.ariane.group/en/careers/",
-     notes: "CONFIRMED reachable 2026-07-27. No public board API found. Sites at
-             Les Mureaux, Vernon, Bremen and Ottobrunn."}
+  - {name: ArianeGroup, country: FR, city: Les Mureaux, ats: workday,
+     ats_endpoint: "https://arianegroup.wd3.myworkdayjobs.com/wday/cxs/arianegroup/EXTERNALALL/jobs",
+     poll_enabled: true, tags: [launch, propulsion],
+     careers_url: "https://arianegroup.wd3.myworkdayjobs.com/en-US/EXTERNALALL",
+     notes: "CONFIRMED 2026-08-31 — Workday, tenant 'arianegroup', site
+             EXTERNALALL. The 2026-07-27 probe said 'no public board API' and
+             was wrong: it read the marketing page rather than following the
+             link on it. Sites at Les Mureaux, Vernon, Bremen and Ottobrunn.
+             First search returned 'Ingenieure Guidage Lanceurs et Vehicules
+             de rentree'."}
   - {name: Sodern, country: FR, city: Limeil-Brevannes, ats: manual,
      tags: [navigation, space, sme],
      careers_url: "https://www.sodern.com/en/careers/",

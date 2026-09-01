@@ -623,3 +623,46 @@ def test_the_report_says_how_many_adverts_were_read(store, cfg, comp_cfg, cities
     )
 
     assert report.read == 2
+
+
+# --- doctoral postings, whatever board they came off --------------------
+
+def test_a_doctoral_posting_is_stored_as_one(store, cfg, comp_cfg, cities):
+    """Only the ONERA source set a level, so Airbus's "PHD Position in
+    Spacecraft GNC Engineering" was stored as a graduate job and priced
+    against a graduate salary. The title says what it is in every language
+    these boards use."""
+    from jobhunt.poll import infer_level
+
+    for title in ["PHD Position in Spacecraft GNC Engineering (d/f/m)",
+                  "PhD student (d/f/m) in Advanced Navigation Payloads",
+                  "Thèse - Vulnérabilité Radio Fréquence",
+                  "THESE CIFRE – Télé opération acoustique",
+                  "Doctorant en Vérification formelle (H/F)",
+                  "Doktorand (w/m/d) Satellitennavigation"]:
+        assert infer_level(title) == "phd", title
+
+
+def test_an_ordinary_posting_keeps_its_level(store):
+    from jobhunt.poll import infer_level
+
+    for title in ["Navigation Systems Engineer", "Ingénieur GNSS F/H",
+                  "Graduate AOCS/GNC Engineer", "Stage - Traitement du signal"]:
+        assert infer_level(title) == "junior", title
+
+
+def test_a_source_that_knows_the_level_is_believed(store):
+    """ONERA reads it off the page, which beats guessing from the title."""
+    from jobhunt.poll import infer_level
+
+    assert infer_level("Localisation de débris spatiaux", stated="phd") == "phd"
+
+
+def test_polling_stores_a_phd_at_doctoral_level(store, cfg, comp_cfg, cities):
+    store.upsert_employer(Employer(name="Airbus"))
+    found = [posting("PHD Position in Spacecraft GNC Navigation", "https://x/1")]
+
+    poll_employer(store, Employer(name="Airbus"), fake_source(found), None,
+                  cfg, comp_cfg, cities, now="2026-08-31T00:00:00Z")
+
+    assert store.list_jobs()[0].level == "phd"

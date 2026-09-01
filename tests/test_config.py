@@ -114,3 +114,18 @@ def test_load_deadlines(tmp_path):
     assert d[0].name == "ESA Young Graduate Trainee"
     assert d[0].closes == "2026-11-15"
     assert d[0].lead_days == 60
+
+
+def test_the_search_vocabulary_asks_for_doctoral_work():
+    """Workday searches its own text server-side, so a term absent from this
+    list is a posting that is never retrieved at all. Airbus, Thales and
+    ArianeGroup all advertise funded theses; every doctoral posting in the
+    database had been found by accident, on a domain word that happened to be
+    in the title."""
+    from pathlib import Path
+
+    from jobhunt.config import load_scoring
+
+    terms = {t.lower() for t in load_scoring(Path("config/scoring.yaml")).poll_search_terms}
+    for wanted in ("phd", "doktorand", "thèse", "cifre", "doctorant"):
+        assert any(wanted in t for t in terms), wanted

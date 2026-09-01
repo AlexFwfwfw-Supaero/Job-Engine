@@ -117,7 +117,10 @@ def _cornerstone_reader(url: str, client) -> str:
 def fetch_posting_text(job: Job, client, html_fetcher=fetch_text,
                        cornerstone_reader=None) -> str:
     """The posting's full text, by whichever route that source exposes it."""
-    if job.source == "workday" and cxs_detail_url(job.url):
+    # Keyed on the URL, not the source: a hand-added job records source
+    # "manual" whatever it points at, and a pasted Workday link needs the CXS
+    # endpoint just as much as a polled one does.
+    if cxs_detail_url(job.url):
         text = _workday_text(job.url, client)
     elif job.source == "talentsoft":
         text = talentsoft_text(job.url, client)

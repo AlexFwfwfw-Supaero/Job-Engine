@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Callable
 
@@ -115,6 +116,29 @@ DETAIL_TEXT: dict[str, Callable[[str, object], str]] = {
 DEFAULT_DETAIL_BUDGET = 600
 
 
+# A funded thesis says so in its title, in whichever language the board uses.
+# "these" is deliberately absent: it is the English word, and it would make a
+# doctoral position of anything titled "these systems".
+_DOCTORAL_RE = re.compile(
+    r"\b(ph\.?d|doctoral|doctorant|doctorante|doktorand(?:in)?|"
+    r"promotionsstelle|cifre)\b|thèse|these cifre",
+    re.I,
+)
+
+
+def infer_level(title: str, stated: str = "") -> str:
+    """Doctoral or graduate, read off the title.
+
+    Only the ONERA source ever set a level, so Airbus's "PHD Position in
+    Spacecraft GNC Engineering" was stored as a graduate job and priced
+    against a graduate salary. A source that knows better is believed; this is
+    the fallback for the boards that carry no such field, which is all of them.
+    """
+    if stated and stated != "junior":
+        return stated
+    return "phd" if _DOCTORAL_RE.search(title or "") else "junior"
+
+
 def _worth_reading(posting: RawPosting, employer: Employer,
                    cfg: ScoringConfig) -> bool:
     """Whether this posting's own page is worth a request.
@@ -145,8 +169,9 @@ def _score_and_store(
     if not match.relevant:
         return False
 
+    level = infer_level(posting.title, posting.level)
     city_entry = cities.get(posting.city.lower()) if posting.city else None
-    breakdown = compensation(country, posting.level, posting.salary_stated,
+    breakdown = compensation(country, level, posting.salary_stated,
                              comp_cfg, city_entry, cfg)
     qol = quality_of_life(city_entry, cfg)
     total = total_score(breakdown.normalised, qol, match.role_fit, cfg.weights)
@@ -165,7 +190,7 @@ def _score_and_store(
         qol_score=qol,
         total_score=total,
         language_flags=match.language_flags,
-        level=posting.level,
+        level=level,
         tags=list(employer.tags),
         description=_stored_description(posting),
     ))
