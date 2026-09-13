@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from urllib.parse import urljoin
 
@@ -46,6 +47,66 @@ def _path_location(external_path: str) -> str:
     ).strip()
 
 
+# The sites a tenant names with no country in front of them. Airbus's tenant
+# writes "Getafe Area" and "Stevenage" flat, so split_location finds nothing
+# and every posting fell back to the employer's own DE — which put its Spanish
+# and British sites into the results as German jobs, and landed a Stevenage
+# graduate scheme on the shortlist behind the GB exclusion.
+#
+# Only unambiguous names are here, and only ones this watchlist actually sees.
+# A town whose name is shared across countries (Newport, Melbourne, Toledo)
+# stays out: the whole point of split_location is that a guess about country
+# is worse than no answer, because the country exclusion acts on it.
+_SITE_COUNTRY = {
+    # United Kingdom
+    "stevenage": "GB", "portsmouth": "GB", "yeovil": "GB", "basildon": "GB",
+    "filton": "GB", "broughton": "GB", "newport": "GB", "luton": "GB",
+    # Spain
+    "getafe": "ES", "madrid": "ES", "sevilla": "ES", "seville": "ES",
+    "albacete": "ES", "barajas": "ES", "tres cantos": "ES",
+    # France
+    "toulouse": "FR", "blagnac": "FR", "marignane": "FR", "elancourt": "FR",
+    "marseille": "FR", "paris": "FR", "bordeaux": "FR", "nantes": "FR",
+    # Germany
+    "hamburg": "DE", "bremen": "DE", "manching": "DE", "ottobrunn": "DE",
+    "friedrichshafen": "DE", "immenstaad": "DE", "backnang": "DE",
+    "taufkirchen": "DE", "donauworth": "DE", "ulm": "DE", "munchen": "DE",
+    # Elsewhere
+    "montreal": "CA", "mirabel": "CA", "fort erie": "CA",
+    "bangalore": "IN", "gdansk": "PL", "sevilla la nueva": "ES",
+    "mobile": "US", "wichita": "US", "herndon": "US",
+    # Safran's sites, for the same reason: its rows name a country in the
+    # address, but the town is all that survives into storage, so a repair of
+    # already-stored rows has only this to go on.
+    "botany": "AU", "banbury": "GB", "cwmbran": "GB", "gloucester": "GB",
+    "pitstone": "GB", "chennai": "IN", "hyderabad": "IN", "kirkland": "CA",
+    "ajax": "CA", "redmond": "US", "irvine": "US", "rockford": "US",
+    "garden grove": "US", "chihuahua": "MX", "queretaro": "MX",
+    "shanghai": "CN", "murr": "DE", "herborn": "DE", "norderstedt": "DE",
+    "heerbrugg": "CH", "herstal": "BE", "granada": "ES",
+}
+
+# "Getafe Area", "Mobile Area, AL", "Munchen Area" — Workday appends a region
+# word and sometimes a state. The site name is what comes before it.
+_SITE_SUFFIX_RE = re.compile(r"\s*(area|region)\b.*$", re.I)
+
+
+def country_for_site(raw: str) -> str:
+    """`'Getafe Area'` -> `'ES'`; `'Immenstaad am Bodensee'` -> `''`.
+
+    Same contract as `split_location`: the ISO code when the site name is one
+    this knows, an empty string otherwise, never a guess.
+    """
+    text = _SITE_SUFFIX_RE.sub("", (raw or "").strip()).strip(" ,-")
+    if not text:
+        return ""
+    folded = "".join(
+        ch for ch in unicodedata.normalize("NFKD", text.casefold())
+        if not unicodedata.combining(ch)
+    )
+    return _SITE_COUNTRY.get(folded, "")
+
+
 def split_location(raw: str) -> tuple[str, str]:
     """`'IT - Torino - C.so Francia'` -> `('Torino', 'IT')`.
 
@@ -82,6 +143,12 @@ def parse_jobs(payload: dict, employer: Employer) -> list[RawPosting]:
             path_city, path_country = split_location(_path_location(external_path))
             if path_country:
                 city, country = path_city, path_country
+        if not country:
+            # Neither the location nor the path names one. Some tenants never
+            # do — Airbus writes "Stevenage" flat — so the site name itself is
+            # the last piece of evidence before falling back to the employer.
+            country = (country_for_site(city)
+                       or country_for_site(_path_location(external_path)))
         postings.append(RawPosting(
             source=NAME,
             url=_job_url(external_path, employer),

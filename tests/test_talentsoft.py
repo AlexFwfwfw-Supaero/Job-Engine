@@ -217,3 +217,78 @@ def employer_for_test():
                     ats="talentsoft",
                     ats_endpoint="https://careers.safran-group.com",
                     careers_url="https://careers.safran-group.com/accueil.aspx")
+
+
+# --- the country the address states ------------------------------------
+
+@pytest.mark.parametrize("address,expected", [
+    # The country is named outright at the end, which is what the board does
+    # for most of its non-French sites.
+    ("Rue de Trois Fontaines HERSTAL Belgium", "BE"),
+    ("2 Fanshawe Road Banbury United Kingdom", "GB"),
+    ("Am Kappengraben 6 Herborn Germany", "DE"),
+    ("Cra. 9 Chihuahua Mexico", "MX"),
+    ("1 Marsh Street Botany Australia", "AU"),
+    # Written in French, because the French portal writes some of them so.
+    ("Bahnhofstrasse Murr Allemagne", "DE"),
+    ("Via Roma TORINO Italie", "IT"),
+    ("Calle Real Granada Espagne", "ES"),
+    # A US state code before the postcode is the only country marker there is.
+    ("7330 Lincoln Way CA 92841 Garden Grove", "US"),
+    ("1 Bell Road WA 98052 Redmond", "US"),
+    # France is stated on plenty of rows and must still read as France.
+    ("100, avenue de Paris 91344 Massy France", "FR"),
+    # Nothing states a country: the caller keeps its default rather than
+    # guessing from a town name that could be in three countries.
+    ("21 avenue du Gros Chêne 95610 ERAGNY-SUR-OISE", ""),
+    ("Massy", ""),
+    ("", ""),
+])
+def test_country_from_address(address, expected):
+    assert talentsoft.country_from_address(address) == expected
+
+
+def test_a_stated_country_is_believed_over_the_employers_own(employer):
+    """Safran's board is group-wide. Every row used to be stamped FR, which put
+    sixty postings in Sydney, Bangalore and Redmond into the results as French
+    jobs — and the eight live ones reached the pipeline behind the country
+    exclusion that exists to keep them out."""
+    row = ('<li class="ts-offer-list-item" data-title="PNT Engineer" '
+           'data-reference="2025-172231">'
+           '<a class="ts-offer-list-item__title-link" href="/x.aspx">x</a>'
+           '<ul class="ts-offer-list-item__description">'
+           '<li>ref</li><li>date</li><li>Permanent</li>'
+           '<li>1 Marsh Street Botany Australia</li></ul></li>')
+    posting = talentsoft.parse_jobs(row, employer)[0]
+    assert posting.country == "AU"
+    assert posting.city == "Botany"
+
+
+def test_an_address_with_no_country_keeps_the_employers_own(employer):
+    """Most of the board really is French and says nothing about it."""
+    postings = talentsoft.parse_jobs(FIXTURE.read_text(encoding="utf-8"),
+                                     employer)
+    assert postings[0].country == "FR"
+
+
+def test_the_country_word_is_not_left_in_the_city(employer):
+    """'Botany Australia' as a city matches nothing in cities.yaml."""
+    assert talentsoft.city_from_address("1 Marsh Street Botany Australia") \
+        == "Botany"
+    assert talentsoft.city_from_address("Am Kappengraben 6 Herborn Germany") \
+        == "Herborn"
+
+
+@pytest.mark.parametrize("address,expected", [
+    # UK and Canadian postcodes are alphanumeric, so the digits-only hinge
+    # never found them and the whole postcode stayed in the town.
+    ("Chalker Way OX16 4X Banbury United Kingdom", "Banbury"),
+    ("Llantarnam Industrial Park NP44 3HQ Cwmbran United Kingdom", "Cwmbran"),
+    ("Trans-Canada Hwy QC H9J 3K1 Kirkland Canada", "Kirkland"),
+    ("Westfield Road LU7 9RH Pitstone, Buckinghamshire United Kingdom",
+     "Pitstone, Buckinghamshire"),
+    # The French hinge still wins where it applies.
+    ("21 avenue du Gros Chêne 95610 ERAGNY-SUR-OISE", "ERAGNY-SUR-OISE"),
+])
+def test_town_after_an_alphanumeric_postcode(address, expected):
+    assert talentsoft.city_from_address(address) == expected

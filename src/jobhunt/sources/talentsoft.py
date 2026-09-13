@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import html as html_module
 import re
+import unicodedata
 from urllib.parse import urljoin
 
 from jobhunt.models import Employer
@@ -62,9 +63,92 @@ _CELL_RE = re.compile(r"<li[^>]*>(.*?)</li>", re.S)
 # 'facet_JobFamily=4244" title="... : Electronique et automatique (89)"'
 _FAMILY_RE = re.compile(r'facet_JobFamily=(\d+)"\s+title="[^"]*\((\d+)\)"')
 
+# The country the row names, in the languages the portal writes it in. The
+# board is group-wide: Safran has sites in Sydney, Bangalore, Redmond and
+# Chihuahua, and stamping every row with the employer's own FR put sixty of
+# them into the results as French jobs, where the country exclusion could not
+# reach them. Where a row names its country it is believed; where it does not,
+# the caller keeps its default, because a bare "Massy" says nothing and a bare
+# "Granada" could be Spain or Nicaragua.
+_COUNTRY_WORDS = {
+    "france": "FR", "belgium": "BE", "belgique": "BE",
+    "united kingdom": "GB", "royaume-uni": "GB", "royaume uni": "GB",
+    "germany": "DE", "allemagne": "DE", "deutschland": "DE",
+    "spain": "ES", "espagne": "ES", "espana": "ES",
+    "italy": "IT", "italie": "IT", "italia": "IT",
+    "switzerland": "CH", "suisse": "CH",
+    "netherlands": "NL", "pays-bas": "NL", "pays bas": "NL",
+    "poland": "PL", "pologne": "PL", "portugal": "PT",
+    "australia": "AU", "australie": "AU",
+    "india": "IN", "inde": "IN",
+    "mexico": "MX", "mexique": "MX",
+    "canada": "CA", "china": "CN", "chine": "CN",
+    "singapore": "SG", "singapour": "SG",
+    "japan": "JP", "japon": "JP",
+    "brazil": "BR", "bresil": "BR",
+    "morocco": "MA", "maroc": "MA",
+    "united states": "US", "etats-unis": "US", "etats unis": "US", "usa": "US",
+}
+# Longest first, so "united kingdom" is tried before a bare country word that
+# happens to be a prefix of it.
+_COUNTRY_RE = re.compile(
+    r"[,\s]+(" + "|".join(
+        re.escape(w) for w in sorted(_COUNTRY_WORDS, key=len, reverse=True)
+    ) + r")\s*$",
+    re.I,
+)
+
+# "7330 Lincoln Way CA 92841 Garden Grove". The US rows name no country at all;
+# a two-letter state code sitting immediately before the postcode is the only
+# thing that distinguishes them, and no French address has that shape.
+_US_STATE_RE = re.compile(r"\b(A[KLRZ]|C[AOT]|D[CE]|FL|GA|HI|I[ADLN]|K[SY]"
+                          r"|LA|M[ADEINOST]|N[CDEHJMVY]|O[HKR]|PA|RI|S[CD]"
+                          r"|T[NX]|UT|V[AT]|W[AIVY])\s+\d{5}\b")
+
+
+def _strip_accents(text: str) -> str:
+    return "".join(ch for ch in unicodedata.normalize("NFKD", text)
+                   if not unicodedata.combining(ch))
+
+
+def country_from_address(raw: str) -> str:
+    """`'1 Marsh Street Botany Australia'` -> `'AU'`; `'Massy'` -> `''`.
+
+    Returns the ISO code the address names, or an empty string when it names
+    none — the same contract as `workday.split_location`, and for the same
+    reason: a guess here is a posting filed under a country you cannot work in.
+    """
+    text = re.sub(r"\s+", " ", html_module.unescape(raw or "")).strip(" ,")
+    if not text:
+        return ""
+    match = _COUNTRY_RE.search(_strip_accents(text))
+    if match:
+        return _COUNTRY_WORDS[match.group(1).lower()]
+    if _US_STATE_RE.search(text):
+        return "US"
+    return ""
+
+
 # A postcode is the reliable hinge in a French address; anything after the last
 # one is the town. Italian and Spanish sites use four to five digits too.
 _POSTCODE_RE = re.compile(r"\b\d{4,5}\b")
+# "OX16 4X", "NP44 3HQ", "H9J 3K1": a letter-led outward code followed by an
+# inward one. Anchored on the letters so a French "91344 Massy" cannot match.
+# The Canadian rows put the province in front of it — "QC H9J 3K1" — and the
+# province is not part of the town either, so it is taken with the code.
+_OUTWARD_CODE_RE = re.compile(
+    r"\b(?:[A-Z]{2}\s+)?[A-Z]{1,2}\d[A-Z\d]?\s+\d[A-Z]\d?[A-Z]?\b", re.I)
+
+# The word that ends a street name in the addresses that carry no postcode.
+# Only needed for the mixed-case foreign rows; French ones are settled by the
+# postcode long before this.
+_STREET_SUFFIX_RE = re.compile(
+    r"\b(street|st|road|rd|avenue|ave|drive|dr|lane|ln|way|boulevard|blvd"
+    r"|court|ct|place|pl|highway|hwy|parkway|pkwy|park|close|crescent"
+    r"|terrace|square|estate|industrial estate|industrial park)\b\.?",
+    re.I,
+)
+
 # No postcode: Talentsoft still upper-cases the town, so a trailing run of
 # capitals is the town even when the street name is mixed case.
 _TRAILING_CAPS_RE = re.compile(
@@ -86,18 +170,44 @@ def city_from_address(raw: str) -> str:
     already just "Massy" or "Gloucester".
     """
     text = re.sub(r"\s+", " ", html_module.unescape(raw or "")).strip(" ,")
-    text = re.sub(r"[,\s]+France$", "", text, flags=re.I).strip(" ,")
+    # The country word is not part of the town: "Botany Australia" matches
+    # nothing in cities.yaml. Cut it on the accent-folded copy so "Allemagne"
+    # and "Bresil" are found, then cut the same span from the original.
+    folded = _strip_accents(text)
+    country = _COUNTRY_RE.search(folded)
+    if country:
+        text = text[:country.start()].strip(" ,")
     if not text:
         return ""
 
     last = None
     for last in _POSTCODE_RE.finditer(text):
         pass
+    # UK and Canadian postcodes are alphanumeric and in two halves — "OX16 4X",
+    # "H9J 3K1" — so the digits-only hinge lands inside them and leaves half
+    # the postcode in the town. Where one is present it is the better hinge.
+    outward = None
+    for outward in _OUTWARD_CODE_RE.finditer(text):
+        pass
+    if outward is not None and (last is None or outward.end() >= last.end()):
+        return text[outward.end():].strip(" ,-")
     if last is not None:
         return text[last.end():].strip(" ,-")
     if any(ch.isdigit() for ch in text):
         caps = _TRAILING_CAPS_RE.search(text)
-        return caps.group(1).strip() if caps else text
+        if caps:
+            return caps.group(1).strip()
+        # Non-French sites write the town in mixed case with no postcode —
+        # "1 Marsh Street Botany" — so the run of capitals never fires. What
+        # marks the end of the street there is the street-type word, not a
+        # number: everything after the last one is the town. A word list is
+        # crude, but the alternative is taking the last word, and
+        # "Pitstone, Buckinghamshire" is two.
+        street = _STREET_SUFFIX_RE.search(text)
+        if street:
+            return text[street.end():].strip(" ,.-") or text
+        tail = re.split(r"\b\d[\w.\-/]*\b", text)[-1].strip(" ,.-")
+        return tail or text
     return text
 
 
@@ -124,18 +234,19 @@ def parse_jobs(page: str, employer: Employer) -> list[RawPosting]:
             continue
         title = _TITLE_RE.search(block)
         reference = _REFERENCE_RE.search(block)
+        address = _address(block)
         postings.append(RawPosting(
             source=NAME,
             url=urljoin(employer.ats_endpoint or employer.careers_url,
                         link.group(1)),
             title=html_module.unescape(title.group(1)) if title else "",
             employer_name=employer.name,
-            city=city_from_address(_address(block)),
-            # The board is group-wide and carries Gloucester and Chihuahua
-            # alongside Massy. Nothing in the row says which country, so the
-            # employer's own is the honest default; the model reads the real
-            # location off the posting later.
-            country=employer.country,
+            city=city_from_address(address),
+            # The board is group-wide and carries Botany and Chihuahua
+            # alongside Massy. Most rows name their country and those are
+            # believed; the ones that do not really are French, so the
+            # employer's own stays the default.
+            country=country_from_address(address) or employer.country,
             # Rows carry no advert. Left empty so enrichment fetches the
             # detail page rather than scoring a title against itself.
             description="",

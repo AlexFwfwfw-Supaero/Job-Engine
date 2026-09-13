@@ -233,12 +233,78 @@ def test_a_multi_location_posting_falls_back_to_its_path(employer):
 
 
 def test_a_path_without_a_country_leaves_the_employers_own(employer):
+    """A site nothing can place keeps the employer's own country. Immenstaad
+    is deliberately not in the gazetteer's reach here: it is where Airbus
+    really is German, and the fallback has to still work."""
+    from jobhunt.sources.workday import parse_jobs
+
+    payload = {"jobPostings": [{
+        "title": "GNSS Engineer",
+        "externalPath": "/job/Immenstaad-am-Bodensee/GNSS_R2",
+        "locationsText": "2 Locations",
+    }]}
+    posting = parse_jobs(payload, employer)[0]
+
+    assert posting.country == employer.country
+
+
+def test_the_path_site_places_a_job_whose_location_states_nothing(employer):
+    """"2 Locations" says nothing, but the path still names the primary site,
+    and Toulouse is not in Germany."""
     from jobhunt.sources.workday import parse_jobs
 
     payload = {"jobPostings": [{
         "title": "GNSS Engineer", "externalPath": "/job/Toulouse-Area/GNSS_R2",
         "locationsText": "2 Locations",
     }]}
-    posting = parse_jobs(payload, employer)[0]
+    assert parse_jobs(payload, employer)[0].country == "FR"
 
-    assert posting.country == employer.country
+
+# --- the sites a tenant names without a country ------------------------
+
+def test_a_known_site_is_placed_even_without_a_country_prefix():
+    """Airbus's tenant writes "Getafe Area" and "Stevenage" with no prefix, so
+    every one of them fell back to the employer's DE. That put thirteen Spanish
+    and five British postings in the results as German jobs — and Stevenage,
+    where there is no right to work, reached the shortlist."""
+    from jobhunt.sources.workday import country_for_site
+
+    assert country_for_site("Stevenage") == "GB"
+    assert country_for_site("Getafe Area") == "ES"
+    assert country_for_site("Portsmouth") == "GB"
+    assert country_for_site("Montreal Area") == "CA"
+    assert country_for_site("Bangalore Area") == "IN"
+    assert country_for_site("Mobile Area, AL") == "US"
+
+
+def test_an_unknown_site_states_nothing():
+    """The gazetteer is evidence, not a guess: a site it does not know keeps
+    the employer's own country rather than being placed by a hunch."""
+    from jobhunt.sources.workday import country_for_site
+
+    assert country_for_site("Immenstaad am Bodensee") == ""
+    assert country_for_site("2 Locations") == ""
+    assert country_for_site("") == ""
+
+
+def test_the_stated_country_still_wins_over_the_gazetteer(employer):
+    """A tenant that says "GB - Newport" is believed even if the gazetteer has
+    a Newport somewhere else."""
+    from jobhunt.sources.workday import parse_jobs
+
+    payload = {"jobPostings": [{
+        "title": "Engineer", "externalPath": "/job/x/Engineer_R1",
+        "locationsText": "GB - Yeovil - Lysander Rd"}]}
+    assert parse_jobs(payload, employer)[0].country == "GB"
+
+
+def test_a_known_site_overrides_the_employers_country(employer):
+    from jobhunt.sources.workday import parse_jobs
+
+    payload = {"jobPostings": [{
+        "title": "AGGP2027 Graduate AOCS/GNC Engineer",
+        "externalPath": "/job/Stevenage/AGGP2027_JR10432663",
+        "locationsText": "Stevenage"}]}
+    posting = parse_jobs(payload, employer)[0]
+    assert posting.country == "GB"
+    assert posting.city == "Stevenage"
