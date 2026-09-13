@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -380,13 +381,39 @@ PROFILE_FILES = ("positioning.md", "evidence.md")
 MIN_PROFILE_CHARS = 120
 
 
+# A bullet whose text is a label with nothing after the colon — "- Methods and
+# tools used:" — is a prompt waiting for an answer, not an answer. The old
+# length test only caught a bare "- ", so every one of these survived and both
+# shipped files cleared MIN_PROFILE_CHARS on their headings alone.
+_UNANSWERED_RE = re.compile(r"^[-*>]\s*[^:]{0,40}(\([^)]*\))?[^:]{0,20}:\s*$")
+# The template's own instructions to the reader. Prose, so nothing else here
+# catches them, and they reach the model as claims about the candidate.
+_TEMPLATE_GUIDANCE = (
+    "two to four angles", "same person, different emphasis",
+    "atomic, factual claims", "not cv bullets", "raw material",
+    "a fresh graduate reads as generic", "pick the angle per employer",
+    "each maps to a role family", "for each, name where you actually used it",
+    "a skill with no evidence line", "everything in a", "include numbers",
+    "(same structure)",
+    # The guidance wraps across lines, and a continuation on its own says just
+    # as little as the sentence it belongs to.
+    "should be traceable to a line", "you cannot defend in an interview",
+    "different emphasis", "link to evidence.md",
+)
+
+
 def _substantive(markdown: str) -> str:
-    """Drop headings, bullets-without-content and italic instructions.
+    """Drop headings, prompts-without-answers and the template's guidance.
 
     profile/ ships as a template of headings and guidance. Passed through
     unchanged it looks non-empty but says nothing about the candidate, and a
     live run showed exactly what that costs: the model refused to judge and
     returned 0.00 for a posting the rule-based matcher scored 1.00.
+
+    A later run showed the subtler cost. The guard only rejected a bare "- ",
+    so "- Methods and tools used:" counted as content: both files passed the
+    threshold on headings alone, and every AI verdict in the database was
+    reached with a page of unanswered prompts standing in for a candidate.
     """
     kept = []
     for line in (markdown or "").splitlines():
@@ -394,6 +421,11 @@ def _substantive(markdown: str) -> str:
         if not stripped or stripped.startswith("#"):
             continue
         if stripped.startswith(("-", "*", ">")) and len(stripped) <= 3:
+            continue
+        if _UNANSWERED_RE.match(stripped):
+            continue
+        lowered = stripped.lower()
+        if any(phrase in lowered for phrase in _TEMPLATE_GUIDANCE):
             continue
         kept.append(stripped)
     return "\n".join(kept)
