@@ -141,18 +141,30 @@ def _has_enough_evidence(cfg: ScoringConfig, title_l: str, desc_l: str) -> bool:
 
 
 def evaluate(
-    title: str, description: str, country: str, cfg: ScoringConfig
+    title: str, description: str, country: str, cfg: ScoringConfig,
+    level: str = "",
 ) -> MatchResult:
-    """Score a posting for relevance. Never mutates cfg; safe to call repeatedly."""
+    """Score a posting for relevance. Never mutates cfg; safe to call repeatedly.
+
+    `level` exists for one distinction: the country exclusion was written for
+    the right to work, and a funded doctorate is not employment. A posting at
+    level "phd" in a country named in `phd_countries` is kept. Callers that
+    know nothing about level get the strict rule.
+    """
     title_l = fold(title)
     desc_l = fold(description)
     reasons: list[str] = []
 
     if country and country.upper() in {c.upper() for c in cfg.excluded_countries}:
-        return MatchResult(
-            relevant=False, role_fit=0.0,
-            reasons=[f"excluded country: {country.upper()}"],
+        doctoral_exception = (
+            level == "phd"
+            and country.upper() in {c.upper() for c in cfg.phd_countries}
         )
+        if not doctoral_exception:
+            return MatchResult(
+                relevant=False, role_fit=0.0,
+                reasons=[f"excluded country: {country.upper()}"],
+            )
 
     for negative in cfg.negative_keywords:
         if _matches(negative, title_l, word_start=True):

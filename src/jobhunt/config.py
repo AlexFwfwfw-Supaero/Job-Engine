@@ -37,6 +37,10 @@ class ScoringConfig:
     role_families: list[RoleFamily]
     negative_keywords: list[str] = field(default_factory=list)
     excluded_countries: list[str] = field(default_factory=list)
+    # Countries excluded for employment where a funded doctorate is still
+    # worth seeing. Employment and study are different propositions, and the
+    # exclusion list was written for the first one.
+    phd_countries: list[str] = field(default_factory=list)
     known_languages: list[str] = field(default_factory=list)
     language_keywords: dict[str, list[str]] = field(default_factory=dict)
     staleness: dict[str, list[int]] = field(default_factory=dict)
@@ -88,6 +92,7 @@ def load_scoring(path: Path) -> ScoringConfig:
         role_families=families,
         negative_keywords=[k.lower() for k in raw.get("negative_keywords", [])],
         excluded_countries=raw.get("excluded_countries", []),
+        phd_countries=raw.get("phd_countries", []),
         known_languages=raw.get("known_languages", []),
         language_keywords={
             lang: [k.lower() for k in kws]

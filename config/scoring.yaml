@@ -9,6 +9,17 @@ rent_range: [400, 1800]
 # under the employer's headquarters.
 excluded_countries: [GB, US, CA, MX, BR, IN, CN, SG, JP, KR, AU, NZ,
                      AE, SA, QA, IL, ZA, MA, EG, RU]
+
+# Countries excluded for employment where a funded doctorate is still worth
+# seeing. The exclusion list above is about the right to work; a doctorate is
+# a study route with its own visa, and the two do not decide together.
+#
+# This is a list rather than a switch on purpose: naming the countries keeps
+# the decision yours and stops a relaxation from quietly opening all twenty.
+# Applies only to postings stored at level phd. VERIFY each of these against
+# the actual visa route before applying — they are here because the doctoral
+# route is commonly open to EU nationals, not because it has been checked.
+phd_countries: [GB, CA, AU, NZ]
 known_languages: [en, fr, es, pt]
 language_keywords:
   de: ["german language", "deutschkenntnisse", "fluent german", "german is required"]

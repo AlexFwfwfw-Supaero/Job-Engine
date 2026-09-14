@@ -153,7 +153,8 @@ def _worth_reading(posting: RawPosting, employer: Employer,
     """
     if posting.description.strip():
         return False
-    match = evaluate(posting.title, "", posting.country or employer.country, cfg)
+    match = evaluate(posting.title, "", posting.country or employer.country,
+                     cfg, infer_level(posting.title, posting.level))
     return not match.relevant and match.reasons[:1] == [NO_FAMILY_MATCHED]
 
 
@@ -175,13 +176,15 @@ def _score_and_store(
     those are decisions, not gaps in vocabulary.
     """
     country = posting.country or employer.country
-    match = evaluate(posting.title, posting.description, country, cfg)
+    # Before the match, not after: the country exclusion needs to know whether
+    # this is employment or a doctorate.
+    level = infer_level(posting.title, posting.level)
+    match = evaluate(posting.title, posting.description, country, cfg, level)
     if not match.relevant:
         undecided = match.reasons[:1] == [NO_FAMILY_MATCHED]
         if not (keep_unmatched and undecided):
             return False
 
-    level = infer_level(posting.title, posting.level)
     city_entry = cities.get(posting.city.lower()) if posting.city else None
     breakdown = compensation(country, level, posting.salary_stated,
                              comp_cfg, city_entry, cfg)

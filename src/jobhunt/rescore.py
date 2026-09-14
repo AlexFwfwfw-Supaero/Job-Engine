@@ -43,7 +43,8 @@ def rescore_all(
         # Where an advert was stored, it is the same text the poll judged the
         # job on, and dropping it here would zero jobs that match on it. Most
         # jobs still have none, and those fall back to the title.
-        match = evaluate(job.title, job.description or "", job.country, cfg)
+        match = evaluate(job.title, job.description or "", job.country, cfg,
+                         job.level)
         city = cities.get(job.city.lower()) if job.city else None
         breakdown = compensation(job.country, job.level, job.salary_stated,
                                  comp_cfg, city, cfg)

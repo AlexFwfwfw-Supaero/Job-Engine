@@ -450,3 +450,49 @@ def test_control_of_a_flow_or_a_process_is_not_vehicle_control():
         "Contrôle qualité des pièces usinées",
     ]:
         assert evaluate(title, "", "FR", cfg).role_fit == 0.0, title
+
+
+# --- a doctorate is not a job offer ------------------------------------
+
+def _phd_cfg():
+    from jobhunt.config import ScoringConfig, RoleFamily
+    return ScoringConfig(
+        weights={"comp": 0.3, "qol": 0.2, "fit": 0.5},
+        qol_weights={},
+        role_families=[RoleFamily(name="pnt", weight=1.0,
+                                  keywords=["gnss", "navigation"])],
+        excluded_countries=["GB", "US", "CA", "AU"],
+        phd_countries=["CA", "AU"],
+    )
+
+
+def test_an_excluded_country_still_rejects_an_ordinary_job():
+    result = evaluate("GNSS Navigation Engineer", "", "CA", _phd_cfg())
+    assert not result.relevant
+
+
+def test_a_doctorate_is_allowed_where_the_doctoral_route_is_open():
+    """Employment and study are different propositions: the right to work
+    post-Brexit has nothing to say about a funded doctorate in Canada."""
+    result = evaluate("PhD in GNSS navigation", "", "CA", _phd_cfg(),
+                      level="phd")
+    assert result.relevant
+
+
+def test_a_doctorate_is_still_rejected_where_it_is_not_listed():
+    """phd_countries is a list, not a switch: GB and US stay out unless they
+    are named, so relaxing the rule never quietly opens the whole world."""
+    result = evaluate("PhD in GNSS navigation", "", "GB", _phd_cfg(),
+                      level="phd")
+    assert not result.relevant
+
+
+def test_an_allowed_country_needs_no_exception():
+    result = evaluate("PhD in GNSS navigation", "", "FR", _phd_cfg(),
+                      level="phd")
+    assert result.relevant
+
+
+def test_the_level_defaults_to_treating_a_posting_as_a_job():
+    """Callers that know nothing about level must get the strict rule."""
+    assert not evaluate("GNSS Engineer", "", "AU", _phd_cfg()).relevant
