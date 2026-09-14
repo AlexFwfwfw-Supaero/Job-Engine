@@ -159,6 +159,25 @@ employers:
              student rather than priced as graduate posts. Erlangen, Nurnberg
              and Fuerth. Home of the Galileo signal work and a genuine PhD
              route."}
+  - {name: ISAE-SUPAERO, country: FR, city: Toulouse, ats: isae_theses,
+     ats_endpoint: "https://www.isae-supaero.fr/en/type-contrat/phd-offer/",
+     poll_enabled: true, read_everything: true,
+     tags: [gnss, academic, research, phd],
+     careers_url: "https://www.isae-supaero.fr/en/type-contrat/phd-offer/",
+     notes: "CONFIRMED 2026-09-13 — WordPress archive of doctoral offers, 8 on
+             the page. Unusual and useful: the archive inlines each offer in
+             full rather than linking to it, so one request carries every
+             subject and its body and nothing needs enrichment to be readable.
+             Worth polling for the company it keeps rather than the volume: its
+             doctoral students sit in teams shared with ONERA, and its
+             industrial chairs are Airbus DS, ArianeGroup, Thales and Safran,
+             so a thesis here is often the same work their job adverts
+             describe, funded differently. read_everything because eight
+             offers is small enough for the model to judge them all, and a
+             thesis title routinely matches no role family: 'Deterministic QoS
+             Guarantees in Next-Generation LEO Satellite Constellations' is
+             navigation work three paragraphs down."}
+
   - {name: CNES, country: FR, city: Toulouse, ats: sitemap,
      ats_endpoint: "https://recrutement.cnes.fr/sitemap.xml#/fr/annonce/",
      poll_enabled: true, read_everything: true, tags: [space, agency],
@@ -213,8 +232,6 @@ employers:
      ats: manual, tags: [gnss, academic, phd],
      careers_url: "https://www.unibw.de/home/stellenangebote",
      notes: "Institute of Space Technology and Space Applications — strong GNSS group"}
-  - {name: ISAE-SUPAERO, country: FR, city: Toulouse, ats: manual, tags: [gnss, academic, phd],
-     careers_url: "https://www.isae-supaero.fr/en/"}
   - {name: TU Delft, country: NL, city: Delft, ats: manual, tags: [gnss, academic, phd],
      careers_url: "https://www.tudelft.nl/over-tu-delft/werken-bij-tu-delft"}
   - {name: KU Leuven, country: BE, city: Leuven, ats: manual, tags: [academic, phd],

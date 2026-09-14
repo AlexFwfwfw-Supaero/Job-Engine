@@ -159,6 +159,35 @@ never sent to the server, so the whole configuration for a board fits on one
 line. Leave it out and the poll fails with that message rather than storing the
 privacy policy as a job.
 
+## Doctoral offers
+
+Funded theses hide differently from jobs, and the search has to go where they
+are rather than where the jobs are.
+
+Three places, from what polling has actually found. **The institute's own
+doctoral page**, which is usually a different website from its careers page:
+ONERA advertises theses on `w3.onera.fr`, nowhere near the TalentLink feed its
+staff jobs live in, and that one source accounts for most of the doctoral rows
+in the database. **The corporate ATS**, where a thesis is a contract type
+rather than a subject — Airbus posts PhD positions into the same Workday
+tenant as everything else, which is why `poll_search_terms` carries `phd`,
+`doktorand`, `thèse` and `cifre`. And **aggregators**, which are the
+disappointment: EURAXESS and ABG both ignore an anonymous keyword filter
+(verified — a nonsense word returns the same results as `GNSS`), so neither
+can be asked for navigation work. Their good positions are filled through
+supervisor contact long before they are indexed.
+
+So the useful shape is a small institutional page polled with
+`read_everything: true`, letting the model judge what a keyword list cannot.
+A thesis title routinely matches no role family — "Deterministic QoS
+Guarantees in Next-Generation LEO Satellite Constellations" is navigation work
+three paragraphs down — so screening on titles alone discards the field.
+
+`phd_countries` in `scoring.yaml` is the other half. The country exclusion is
+about the right to work, and a doctorate is a study route with its own visa,
+so a country excluded for employment can still be open for a thesis. It is a
+list rather than a switch, and its seed values are marked VERIFY.
+
 ## Not yet built
 
 Cornerstone (GMV, OHB) needs a session token its search API will not issue to a
