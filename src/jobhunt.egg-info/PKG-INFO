@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: jobhunt
+Version: 0.1.0
+Requires-Python: >=3.11
+Requires-Dist: typer>=0.12
+Requires-Dist: httpx>=0.27
+Requires-Dist: jinja2>=3.1
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: certifi
+Requires-Dist: fastapi>=0.110
+Requires-Dist: uvicorn>=0.29
+Requires-Dist: python-multipart>=0.0.9
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Provides-Extra: ai
+Requires-Dist: anthropic>=0.40; extra == "ai"
