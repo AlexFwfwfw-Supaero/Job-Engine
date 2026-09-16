@@ -496,3 +496,44 @@ def test_an_allowed_country_needs_no_exception():
 def test_the_level_defaults_to_treating_a_posting_as_a_job():
     """Callers that know nothing about level must get the strict rule."""
     assert not evaluate("GNSS Engineer", "", "AU", _phd_cfg()).relevant
+
+
+# --- quantum inertial sensing is navigation, not physics ---------------
+
+def test_a_cold_atom_inertial_sensor_is_navigation_work():
+    """Quantum PNT is the field every major navigation group is now funding,
+    and the config had no word for it: ONERA's "Développement d'un
+    interféromètre à atomes froids multi-espèce" — a cold-atom inertial sensor,
+    as its own URL says — matched no family at all and scored zero."""
+    from jobhunt.config import load_scoring
+    from pathlib import Path
+
+    cfg = load_scoring(Path("config/scoring.yaml"))
+    result = evaluate(
+        "Développement d'un interféromètre à atomes froids multi-espèce",
+        "Capteurs inertiels à atomes froids capteur quantique "
+        "Interférométrie atomique",
+        "FR", cfg, "phd")
+    assert result.relevant
+    assert result.role_fit > 0
+
+
+def test_an_atomic_clock_is_timing_work():
+    from jobhunt.config import load_scoring
+    from pathlib import Path
+
+    cfg = load_scoring(Path("config/scoring.yaml"))
+    result = evaluate("Optical clock development for space", "", "DE", cfg)
+    assert result.relevant
+
+
+def test_quantum_computing_is_not_navigation():
+    """The point is quantum *sensing*, not the word "quantum". A compiler
+    role at the same institute must not be dragged in by it."""
+    from jobhunt.config import load_scoring
+    from pathlib import Path
+
+    cfg = load_scoring(Path("config/scoring.yaml"))
+    result = evaluate("Quantum Software Engineer - Quantum Compilation",
+                      "", "DE", cfg)
+    assert not result.relevant

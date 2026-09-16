@@ -219,7 +219,26 @@ role_families:
                "integrite du signal", "integrite de la navigation",
                "surveillance d'integrite",
                "datation", "synchronisation temporelle",
-               "storunterdruckung", "storfestigkeit", "zeitsynchronisation"]
+               "storunterdruckung", "storfestigkeit", "zeitsynchronisation",
+               # Quantum inertial sensing is a PNT modality, and the config
+               # had no word for any of it: ONERA's cold-atom interferometer
+               # thesis — a "capteur inertiel" by its own URL — matched
+               # nothing at all and scored zero, as did DLR Hannover's whole
+               # Institute of Satellite Geodesy and Inertial Sensing.
+               #
+               # Every term is a sensing one. Bare "quantum" is deliberately
+               # absent: it would take the quantum-compiler and quantum-
+               # software roles at the same institutes, which are computing.
+               "quantum sensor", "quantum sensing", "quantum navigation",
+               "quantum inertial", "quantum gravimeter", "cold atom",
+               "atom interferometry", "atomic clock", "optical clock",
+               "matter wave", "gravimet", "gravity gradiomet",
+               "capteur quantique", "capteurs quantiques", "atomes froids",
+               "interferometrie atomique", "horloge atomique",
+               "capteur inertiel quantique",
+               "quantensensor", "quantensensorik", "quantennavigation",
+               "atominterferometrie", "atomuhr", "kalte atome",
+               "inertialsensorik"]
   - name: navigation_systems
     weight: 0.9
     # The French terms are not translations for tidiness: ONERA, CNES and the
